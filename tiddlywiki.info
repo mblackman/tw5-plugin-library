@@ -1,0 +1,18 @@
+{
+  "description": "Matt Blackman's TiddlyWiki5 Plugin Library",
+  "plugins": [
+    "tiddlywiki/pluginlibrary"
+  ],
+  "themes": [
+    "tiddlywiki/vanilla",
+    "tiddlywiki/snowwhite"
+  ],
+  "build": {
+    "index": [
+      "--render",
+      "$:/core/save/all",
+      "index.html",
+      "text/plain"
+    ]
+  }
+}

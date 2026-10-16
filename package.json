@@ -1,0 +1,14 @@
+{
+  "name": "tw5-plugin-library",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-contained TiddlyWiki5 plugin library for @mblackman plugins",
+  "scripts": {
+    "sync": "node scripts/sync-and-build.js",
+    "build:force": "node scripts/sync-and-build.js --force",
+    "check": "node scripts/sync-and-build.js --check-only"
+  },
+  "dependencies": {
+    "tiddlywiki": "^5.3.6"
+  }
+}
