@@ -1,0 +1,6 @@
+node_modules/
+dist/
+tiddlers/*.json
+tiddlers/*.tid
+!tiddlers/.gitkeep
+.DS_Store

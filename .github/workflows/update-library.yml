@@ -1,0 +1,89 @@
+name: Sync and Deploy Plugin Library
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Polls all repositories in plugins.json every 6 hours for new GitHub Releases
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force rebuild even if no new releases were detected"
+        required: false
+        default: "false"
+        type: boolean
+  repository_dispatch:
+    types: [plugin-released]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-library-build"
+  cancel-in-progress: false
+
+jobs:
+  sync-and-build:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.sync.outputs.should_deploy }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fetch latest plugin releases and build library
+        id: sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "repository_dispatch" ] || [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            node scripts/sync-and-build.js --force
+          else
+            node scripts/sync-and-build.js
+          fi
+
+          if [ -d "dist" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit updated plugins-lock.json if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugins-lock.json
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(library): sync latest plugin releases"
+            git push
+          fi
+
+      - name: Upload GitHub Pages artifact
+        if: steps.sync.outputs.should_deploy == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: sync-and-build
+    if: needs.sync-and-build.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
