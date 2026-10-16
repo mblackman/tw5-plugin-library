@@ -16,3 +16,23 @@ Configured in [`plugins.json`](./plugins.json):
 - [`mblackman/tiddlywiki-coffee-tracker`](https://github.com/mblackman/tiddlywiki-coffee-tracker)
 - [`mblackman/tiddlywiki-journal`](https://github.com/mblackman/tiddlywiki-journal)
 - [`mblackman/tiddlywiki-dayjs-plugin`](https://github.com/mblackman/tiddlywiki-dayjs-plugin)
+
+## Quick Start
+
+1. **Initialize and push to GitHub**:
+   ```bash
+   git init -b main
+   git add .
+   git commit -m "feat: initial TiddlyWiki5 plugin library setup"
+   git remote add origin git@github.com:mblackman/tw5-plugin-library.git
+   git push -u origin main
+   ```
+2. **Configure GitHub Pages**:
+   In `mblackman/tw5-plugin-library` on GitHub, navigate to **Settings -> Pages** and set **Build and deployment -> Source** to **GitHub Actions**.
+3. **Local Build / Testing**:
+   ```bash
+   npm install
+   npm run build:force
+   ```
+4. **Syndicate to TiddlyWiki-CPL (Optional)**:
+   Add `https://mblackman.github.io/tw5-plugin-library/recipes/library/index.html` to [TiddlyWiki-CPL's `libraries.json`](https://github.com/tiddly-gittly/TiddlyWiki-CPL/blob/master/libraries.json).

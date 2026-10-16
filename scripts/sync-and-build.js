@@ -49,9 +49,10 @@ async function githubFetchJson(url) {
 }
 
 /**
- * Download a raw release asset JSON file.
+ * Download a raw release asset JSON file via the GitHub Release Asset API URL
+ * with automatic fallback to browser_download_url.
  */
-async function downloadAssetText(url) {
+async function downloadAssetText(asset) {
   const headers = {
     Accept: "application/octet-stream",
     "User-Agent": "mblackman-tw5-plugin-library-builder",
@@ -59,11 +60,21 @@ async function downloadAssetText(url) {
   if (GITHUB_TOKEN) {
     headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
   }
-  const res = await fetch(url, { headers, redirect: "follow" });
-  if (!res.ok) {
-    throw new Error(`Asset download error (${res.status}) for ${url}`);
+  const res = await fetch(asset.url, { headers, redirect: "follow" });
+  if (res.ok) {
+    return res.text();
   }
-  return res.text();
+  // Fallback to browser_download_url without Authorization header
+  const fallbackRes = await fetch(asset.browserDownloadUrl, {
+    headers: { "User-Agent": "mblackman-tw5-plugin-library-builder" },
+    redirect: "follow",
+  });
+  if (!fallbackRes.ok) {
+    throw new Error(
+      `Asset download error (${fallbackRes.status}) for ${asset.browserDownloadUrl}`
+    );
+  }
+  return fallbackRes.text();
 }
 
 /**
@@ -357,23 +368,27 @@ async function main() {
   for (const [repo, meta] of Object.entries(latestMetaByRepo)) {
     for (const asset of meta.assets) {
       console.log(`Downloading ${asset.name} from ${repo}@${meta.releaseTag}...`);
-      const rawText = await downloadAssetText(asset.browserDownloadUrl);
-      const parsed = JSON.parse(rawText);
-      const plugins = extractPluginTiddlers(parsed, repo);
+      try {
+        const rawText = await downloadAssetText(asset);
+        const parsed = JSON.parse(rawText);
+        const plugins = extractPluginTiddlers(parsed, repo);
 
-      for (const plugin of plugins) {
-        const existing = pluginsByTitle.get(plugin.title);
-        if (
-          !existing ||
-          new Date(meta.publishedAt || 0) >= new Date(existing.publishedAt || 0)
-        ) {
-          pluginsByTitle.set(plugin.title, {
-            plugin,
-            repo,
-            releaseTag: meta.releaseTag,
-            publishedAt: meta.publishedAt,
-          });
+        for (const plugin of plugins) {
+          const existing = pluginsByTitle.get(plugin.title);
+          if (
+            !existing ||
+            new Date(meta.publishedAt || 0) >= new Date(existing.publishedAt || 0)
+          ) {
+            pluginsByTitle.set(plugin.title, {
+              plugin,
+              repo,
+              releaseTag: meta.releaseTag,
+              publishedAt: meta.publishedAt,
+            });
+          }
         }
+      } catch (err) {
+        console.warn(`[WARN] Skipping asset ${asset.name} from ${repo}: ${err.message}`);
       }
     }
   }
