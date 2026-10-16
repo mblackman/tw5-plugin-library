@@ -2,6 +2,8 @@
 
 Centralized, self-updating [TiddlyWiki5](https://github.com/TiddlyWiki/TiddlyWiki5) plugin library for `@mblackman` plugins, hosted on GitHub Pages at:
 
+Access the live [Plugin Library](https://mblackman.github.io/tw5-plugin-library/)
+
 - **Interactive Showcase & Library Landing Page**: `https://mblackman.github.io/tw5-plugin-library/`
 - **Plugin Library Endpoint (`$:/tags/PluginLibrary`)**: `https://mblackman.github.io/tw5-plugin-library/recipes/library/index.html`
 
