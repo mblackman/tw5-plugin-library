@@ -129,10 +129,21 @@ function extractPluginReadme(pluginTiddler) {
 }
 
 /**
+ * Escape `<` inside inline JSON script payloads so `</script>` inside a plugin
+ * never prematurely closes the HTML `<script>` tag.
+ */
+function safeJsonForInlineScript(data) {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+/**
  * Generate the official TiddlyWiki5 postMessage library server HTML
  * (`dist/recipes/library/index.html`) compatible with $:/tags/PluginLibrary.
  */
-function generateLibraryServerHtml(libraryTitle, assetListJson) {
+function generateLibraryServerHtml(libraryTitle, metadataArray, fullPluginMap) {
+  const assetListJson = safeJsonForInlineScript(metadataArray);
+  const pluginStoreJson = safeJsonForInlineScript(fullPluginMap);
+
   return `<!doctype html>
 <html>
 <head>
@@ -141,11 +152,7 @@ function generateLibraryServerHtml(libraryTitle, assetListJson) {
 <title>${libraryTitle}</title>
 <script>
 var assetList = ${assetListJson};
-
-// Ensure each asset only exposes metadata fields in the initial listing
-for (var i = 0; i < assetList.length; i++) {
-  delete assetList[i].text;
-}
+var pluginStore = ${pluginStoreJson};
 
 var httpGet = function(url, callback) {
   var http = new XMLHttpRequest();
@@ -171,8 +178,20 @@ window.addEventListener("message", function(event) {
         body: JSON.stringify(assetList, null, 2)
       }, "*");
     } else if (event.data.url.indexOf("recipes/library/tiddlers/") === 0) {
-      var filename = event.data.url.slice("recipes/library/tiddlers/".length);
-      var url = "tiddlers/" + encodeURIComponent(decodeURIComponent(filename));
+      var encodedSuffix = event.data.url.slice("recipes/library/tiddlers/".length);
+      var rawTitle = decodeURIComponent(encodedSuffix.replace(/\\.json$/i, ""));
+      if (pluginStore[rawTitle]) {
+        event.source.postMessage({
+          verb: "GET-RESPONSE",
+          status: "200",
+          cookies: event.data.cookies,
+          url: event.data.url,
+          type: "application/json",
+          body: JSON.stringify(pluginStore[rawTitle], null, 2)
+        }, "*");
+        return;
+      }
+      var url = "tiddlers/" + encodeURIComponent(encodedSuffix);
       httpGet(url, function(body) {
         event.source.postMessage({
           verb: "GET-RESPONSE",
@@ -210,9 +229,11 @@ window.addEventListener("message", function(event) {
 async function writeWikiTiddlers(manifest, collectedPlugins) {
   await fs.mkdir(TIDDLERS_DIR, { recursive: true });
 
+  const configTitle = `$:/config/${manifest.authorHandle}/PluginLibrary`;
+
   // 1. Write the draggable $:/tags/PluginLibrary configuration tiddler
   const libraryConfigTiddler = {
-    title: `$:/config/${manifest.authorHandle}/PluginLibrary`,
+    title: configTitle,
     tags: "$:/tags/PluginLibrary",
     url: `${manifest.libraryBaseUrl.replace(/\/$/, "")}/recipes/library/index.html`,
     caption: manifest.libraryName,
@@ -239,10 +260,12 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
   // 3. Write SiteTitle, SiteSubtitle, DefaultTiddlers, and the PluginLibraryCatalog overview tiddler
   const rows = collectedPlugins
     .map(({ plugin, releaseTag, publishedAt, repo }) => {
-      const desc = plugin.description || "";
+      const desc = (plugin.description || "")
+        .replace(/\|/g, "&#124;")
+        .replace(/\r?\n/g, " ");
       const ver = plugin.version || releaseTag;
       const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
-      return `|[[${plugin.title}]] |\`${ver}\` |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
+      return `|<$draggable tiddler="${plugin.title}"><span class="tc-tag-label">${plugin.title}</span></$draggable> ([[open|${plugin.title}]]) |\`${ver}\` |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
     })
     .join("\n");
 
@@ -250,17 +273,20 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
 tags: TableOfContents
 type: text/vnd.tiddlywiki
 
-Welcome to **${manifest.libraryName}**. This library automatically aggregates the latest GitHub Releases across [[@${manifest.authorHandle}|https://github.com/${manifest.authorHandle}]]'s TiddlyWiki5 plugin repositories.
+Welcome to ''${manifest.libraryName}''. This library automatically aggregates the latest GitHub Releases across [[@${manifest.authorHandle}|https://github.com/${manifest.authorHandle}]]'s TiddlyWiki5 plugin repositories.
 
 !! 1. Add the Plugin Library (Recommended for 1-Click Updates)
 
-Drag and drop the following library configuration pill into your own TiddlyWiki, then open ''Control Panel -> Plugins -> Get more plugins'':
+Drag and drop the following library configuration badge into your own TiddlyWiki, import it, and then open ''Control Panel -> Plugins -> Get more plugins'':
 
-* <$MacroCall $name="tag-pill" tag="$:/config/${manifest.authorHandle}/PluginLibrary"/> — ''${manifest.libraryName}'' (\`${libraryConfigTiddler.url}\`)
+* <$draggable tiddler="${configTitle}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.25em 0.7em; border-radius:1em;">📦 ${manifest.libraryName} (Drag to your TiddlyWiki)</span></$draggable> — or drag the tiddler link directly: [[${configTitle}]]
+* ''Library Endpoint URL'': \`${libraryConfigTiddler.url}\`
 
 !! 2. Available Plugins in This Library
 
-|!Plugin Tiddler |!Version |!Description |!Updated |!Source Repository |
+You can install or update any of these plugins inside your wiki via the Plugin Library above, or drag an individual plugin pill directly from the table below:
+
+|!Plugin Tiddler (Drag to Install) |!Version |!Description |!Updated |!Source Repository |
 ${rows || "|//No plugins published yet// | | | | |"}
 `;
 
@@ -402,10 +428,13 @@ async function main() {
   // 2. Build the static recipes/library/ endpoints
   await fs.mkdir(LIBRARY_TIDDLERS_DIR, { recursive: true });
   const libraryManifestArray = [];
+  const fullPluginMap = {};
 
   for (const { plugin } of collectedPlugins) {
     const cleanPlugin = { ...plugin };
     delete cleanPlugin._sourceRepo;
+
+    fullPluginMap[cleanPlugin.title] = cleanPlugin;
 
     const singleEncoded = `${encodeURIComponent(cleanPlugin.title)}.json`;
     const doubleEncoded = `${encodeURIComponent(encodeURIComponent(cleanPlugin.title))}.json`;
@@ -429,7 +458,7 @@ async function main() {
   await fs.writeFile(path.join(LIBRARY_DIR, "tiddlers.json"), tiddlersJsonText, "utf8");
   await fs.writeFile(
     path.join(LIBRARY_DIR, "index.html"),
-    generateLibraryServerHtml(manifest.libraryName, tiddlersJsonText),
+    generateLibraryServerHtml(manifest.libraryName, libraryManifestArray, fullPluginMap),
     "utf8"
   );
 
