@@ -6,7 +6,6 @@
   "repositories": [
     { "repo": "mblackman/tiddlywiki-slipstream" },
     { "repo": "mblackman/tiddlywiki-timelord" },
-    { "repo": "mblackman/tiddlywiki-revision-history" },
     { "repo": "mblackman/tiddlywiki-media-importer" },
     { "repo": "mblackman/tiddlywiki-coffee-tracker" },
     { "repo": "mblackman/tiddlywiki-journal" },

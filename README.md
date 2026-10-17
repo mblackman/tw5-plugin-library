@@ -12,8 +12,7 @@ Configured in [`plugins.json`](./plugins.json):
 ### Standard Client Plugins (No Server Required)
 These plugins run client-side in any standard TiddlyWiki single-file or node environment:
 - [`mblackman/tiddlywiki-slipstream`](https://github.com/mblackman/tiddlywiki-slipstream) — Sleek 3-column desktop and mobile Zoomin reading layout theme
-- [`mblackman/tiddlywiki-timelord`](https://github.com/mblackman/tiddlywiki-timelord) — Timeline navigation and temporal tiddler browsing
-- [`mblackman/tiddlywiki-revision-history`](https://github.com/mblackman/tiddlywiki-revision-history) — Visual diff viewer and revision history
+- [`mblackman/tiddlywiki-timelord`](https://github.com/mblackman/tiddlywiki-timelord) — Timeline navigation, visual diff viewer, and revision history
 - [`mblackman/tiddlywiki-media-importer`](https://github.com/mblackman/tiddlywiki-media-importer) — Media consumption and asset tracking within TiddlyWiki
 - [`mblackman/tiddlywiki-coffee-tracker`](https://github.com/mblackman/tiddlywiki-coffee-tracker) — Daily coffee and espresso brewing tracker
 - [`mblackman/tiddlywiki-journal`](https://github.com/mblackman/tiddlywiki-journal) — Journal structure and styling enhancements

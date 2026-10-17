@@ -88,8 +88,43 @@ async function downloadAssetText(asset) {
 }
 
 /**
- * Extract valid TiddlyWiki plugin tiddler objects from a parsed JSON file.
- * Supports both single-tiddler JSON objects and exported arrays of tiddlers
+ * Parse a TiddlyWiki `.tid` file string into a tiddler object.
+ */
+function parseTidFile(rawText) {
+  const normalized = rawText.replace(/\r\n/g, "\n");
+  const splitIdx = normalized.indexOf("\n\n");
+  if (splitIdx === -1) return null;
+
+  const headerPart = normalized.slice(0, splitIdx);
+  const bodyPart = normalized.slice(splitIdx + 2);
+  const tiddler = {};
+
+  for (const line of headerPart.split("\n")) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = line.slice(0, colonIdx).trim();
+    const val = line.slice(colonIdx + 1).trim();
+    if (key) {
+      tiddler[key] = val;
+    }
+  }
+  tiddler.text = bodyPart;
+  return tiddler;
+}
+
+/**
+ * Parse raw release asset text (supports `.json` and `.tid` formats).
+ */
+function parseAssetContent(rawText, assetName) {
+  if (/\.tid$/i.test(assetName)) {
+    return parseTidFile(rawText);
+  }
+  return JSON.parse(rawText);
+}
+
+/**
+ * Extract valid TiddlyWiki plugin tiddler objects from a parsed JSON/tid object.
+ * Supports both single-tiddler objects and exported arrays of tiddlers
  * produced by either standard `tiddlywiki --build` or Modern.TiddlyDev.
  */
 function extractPluginTiddlers(parsedJson, sourceRepo) {
@@ -625,7 +660,7 @@ async function main() {
     const assetPattern =
       typeof repoEntry === "object" && repoEntry.assetRegex
         ? new RegExp(repoEntry.assetRegex)
-        : /\.json$/i;
+        : /\.(json|tid)$/i;
 
     const releaseUrl = `https://api.github.com/repos/${repo}/releases/latest`;
     const release = await githubFetchJson(releaseUrl);
@@ -635,16 +670,18 @@ async function main() {
       continue;
     }
 
-    const jsonAssets = (release.assets || []).filter(
+    const allCandidateAssets = (release.assets || []).filter(
       (a) =>
         assetPattern.test(a.name) &&
         !a.name.endsWith("package.json") &&
         !a.name.endsWith("tsconfig.json")
     );
+    const jsonOnlyAssets = allCandidateAssets.filter((a) => /\.json$/i.test(a.name));
+    const jsonAssets = jsonOnlyAssets.length > 0 ? jsonOnlyAssets : allCandidateAssets;
 
     if (jsonAssets.length === 0) {
       console.warn(
-        `[SKIP] Release ${release.tag_name} in ${repo} has no matching .json plugin assets`
+        `[SKIP] Release ${release.tag_name} in ${repo} has no matching .json/.tid plugin assets`
       );
       continue;
     }
@@ -687,7 +724,7 @@ async function main() {
     return;
   }
 
-  // Download all current plugin JSON assets and deduplicate by plugin title
+  // Download all current plugin JSON/tid assets and deduplicate by plugin title
   // (latest publishedAt wins if a renamed repo like revision-history -> timelord shares a title)
   const pluginsByTitle = new Map();
 
@@ -696,7 +733,7 @@ async function main() {
       console.log(`Downloading ${asset.name} from ${repo}@${meta.releaseTag}...`);
       try {
         const rawText = await downloadAssetText(asset);
-        const parsed = JSON.parse(rawText);
+        const parsed = parseAssetContent(rawText, asset.name);
         const plugins = extractPluginTiddlers(parsed, repo);
         for (const plugin of plugins) {
           const isPluginServerDependent = Boolean(

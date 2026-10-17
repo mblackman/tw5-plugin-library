@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
   schedule:
-    # Polls all repositories in plugins.json every 6 hours for new GitHub Releases
-    - cron: "0 */6 * * *"
+    # Polls all repositories in plugins.json every 15 minutes for new GitHub Releases
+    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
       force_rebuild:
