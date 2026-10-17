@@ -22,7 +22,17 @@ const DIST_DIR = path.join(ROOT_DIR, "dist");
 const LIBRARY_DIR = path.join(DIST_DIR, "recipes", "library");
 const LIBRARY_TIDDLERS_DIR = path.join(LIBRARY_DIR, "tiddlers");
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+let GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+if (!GITHUB_TOKEN) {
+  try {
+    GITHUB_TOKEN = execFileSync("gh", ["auth", "token"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    // Fall back to unauthenticated requests if gh CLI is unavailable
+  }
+}
 const FORCE_BUILD = process.argv.includes("--force");
 const CHECK_ONLY = process.argv.includes("--check-only");
 
@@ -110,22 +120,41 @@ function extractPluginTiddlers(parsedJson, sourceRepo) {
  * Extract the embedded readme text from a packed plugin's internal sub-tiddlers
  * so the TiddlyWiki Control Panel plugin browser displays the full README.
  */
-function extractPluginReadme(pluginTiddler) {
+function extractPluginReadme(pluginTiddler, options = {}) {
+  const { includeNotice = true } = options;
+  let readme = "";
   if (typeof pluginTiddler.readme === "string" && pluginTiddler.readme.trim()) {
-    return pluginTiddler.readme;
-  }
-  try {
-    const payload = JSON.parse(pluginTiddler.text || "{}");
-    const subTiddlers = payload.tiddlers || {};
-    for (const [subTitle, subTiddler] of Object.entries(subTiddlers)) {
-      if (subTitle.toLowerCase().endsWith("/readme") && subTiddler?.text) {
-        return subTiddler.text;
+    readme = pluginTiddler.readme;
+  } else {
+    try {
+      const payload = JSON.parse(pluginTiddler.text || "{}");
+      const subTiddlers = payload.tiddlers || {};
+      for (const [subTitle, subTiddler] of Object.entries(subTiddlers)) {
+        if (subTitle.toLowerCase().endsWith("/readme") && subTiddler?.text) {
+          readme = subTiddler.text;
+          break;
+        }
       }
+    } catch {
+      // Ignore malformed inner plugin text
     }
-  } catch {
-    // Ignore malformed inner plugin text
   }
-  return pluginTiddler.description || "";
+  if (!readme) {
+    readme = pluginTiddler.description || "";
+  }
+
+  if (
+    includeNotice &&
+    (pluginTiddler.title === "$:/plugins/mblackman/tiddlypwa" ||
+      pluginTiddler["server-dependent"] === "yes")
+  ) {
+    const notice = `//''⚠️ Backend Server Required'': This plugin requires running a companion [[TiddlyPWA sync backend server|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] (Docker / Deno 2 + SQLite) with zero-knowledge encrypted storage. See [[mblackman/tiddlypwa documentation|https://github.com/mblackman/tiddlypwa]].//\n\n`;
+    if (!readme.includes("companion [[TiddlyPWA sync backend server")) {
+      readme = notice + readme;
+    }
+  }
+
+  return readme;
 }
 
 /**
@@ -247,11 +276,21 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     "utf8"
   );
 
-  // 2. Write each packed plugin tiddler AND a searchable non-system showcase tiddler
-  const rows = [];
+  // 2. Partition plugins into standard and server-dependent collections
+  const standardPlugins = [];
+  const serverDependentPlugins = [];
 
   for (const entry of collectedPlugins) {
-    const { plugin, releaseTag, publishedAt, repo, htmlUrl } = entry;
+    if (entry.serverDependent) {
+      serverDependentPlugins.push(entry);
+    } else {
+      standardPlugins.push(entry);
+    }
+  }
+
+  // 3. Write each packed plugin tiddler AND a searchable non-system showcase tiddler
+  for (const entry of collectedPlugins) {
+    const { plugin, releaseTag, publishedAt, repo, htmlUrl, serverDependent } = entry;
     const safeFile = plugin.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
     const cleanTiddler = {
       ...plugin,
@@ -259,6 +298,9 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
       "source-repo": `https://github.com/${repo}`,
       "library-release-tag": releaseTag,
     };
+    if (serverDependent) {
+      cleanTiddler["server-dependent"] = "yes";
+    }
     delete cleanTiddler._sourceRepo;
 
     await fs.writeFile(
@@ -289,26 +331,48 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
       // Ignore
     }
 
+    let serverNoticeWikitext = "";
+    let serverTableRows = "";
+    if (serverDependent) {
+      serverNoticeWikitext = `
+<div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 5px solid #d46b08; padding: 14px 18px; margin: 1.2em 0; border-radius: 4px; color: #873800;">
+<h3 style="margin-top:0; color:#d46b08;">⚠️ Companion Backend Server Required</h3>
+<p style="margin-bottom:0.6em;">Unlike standard client-only TiddlyWiki plugins that execute solely within the browser, ''${shortName}'' is part of an <strong>offline-first synchronized architecture</strong> requiring a running companion backend server.</p>
+<ul style="margin-bottom:0.6em; padding-left:1.5em;">
+<li><strong>Zero-Knowledge Encryption</strong>: All tiddlers are encrypted locally on your device (AES-GCM / Argon2id) before transmission; the sync server only stores ciphertext and never sees your plaintext content or encryption keys.</li>
+<li><strong>Multi-Device Real-Time Sync</strong>: Streams updates across all open devices in real time via Server-Sent Events (SSE) and WebSocket/JSON-RPC.</li>
+<li><strong>Conflict Resolution</strong>: Optimistic Concurrency Control (OCC) detects concurrent edits across multiple devices and provides non-destructive resolution workflows.</li>
+</ul>
+<p style="margin-bottom:0;">👉 View setup instructions in the [[TiddlyPWA Repository|https://github.com/${repo}]] and the [[Docker Quick Start Guide|https://github.com/${repo}#quick-start-with-docker]].</p>
+</div>
+`;
+      serverTableRows = `
+|!Requirement |<span style="color:#d46b08; font-weight:bold;">⚠️ Companion Backend Server Required</span> (Deno 2 + SQLite) |
+|!Backend Deployment |[[Docker Quick Start|https://github.com/${repo}#quick-start-with-docker]] &bull; [[Architecture Specs|https://github.com/${repo}/tree/trunk/docs]] |`;
+    }
+
+    const rawReadme = extractPluginReadme(cleanTiddler, { includeNotice: false });
+
     // Create a non-system documentation tiddler so the plugin appears in standard search and TableOfContents
     const docTiddler = {
       title: docTiddlerTitle,
-      tags: `[[${homeTitle}]] Plugins`,
+      tags: `[[${homeTitle}]] Plugins${serverDependent ? " [[Server-Dependent Plugins]]" : ""}`,
       caption: shortName,
       "plugin-tiddler": plugin.title,
       version: ver,
       repository: `https://github.com/${repo}`,
+      "server-dependent": serverDependent ? "yes" : "no",
       type: "text/vnd.tiddlywiki",
-      text: `|!Plugin Title |\`${plugin.title}\` |
-|!Install Badge |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag ${shortName} v${ver} to your wiki</span></$draggable> |
+      text: `${serverNoticeWikitext}|!Plugin Title |\`${plugin.title}\` |
+|!Install Badge |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${serverDependent ? "#d46b08" : "#2b6cb0"}; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag ${shortName} v${ver} to your wiki</span></$draggable> |
 |!Version |\`${ver}\` ([[Release ${releaseTag}|${htmlUrl || `https://github.com/${repo}/releases`}]]) |
+|!Architecture |${serverDependent ? "⚠️ ''Server-Dependent'' (Requires TiddlyPWA Sync Server)" : "Standard Client Plugin (No Server Required)"} |
 |!Updated |${dateStr} |
-|!Repository |[[${repo}|https://github.com/${repo}]] |
+|!Repository |[[${repo}|https://github.com/${repo}]] |${serverTableRows}
 
 ---
 
-<$transclude tiddler="${readmeSubTitle}" mode="block">
-//No embedded readme tiddler found in \`${plugin.title}\`.//
-</$transclude>
+${rawReadme || `//No readme found in \`${plugin.title}\`.//`}
 `,
     };
 
@@ -317,32 +381,99 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
       JSON.stringify([docTiddler], null, 2),
       "utf8"
     );
-
-    rows.push(
-      `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab;">📦 \`${plugin.title}\`</span></$draggable> |\`${ver}\` |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`
-    );
   }
 
-  // 3. Write the main landing page tiddler
+  const standardRows = standardPlugins.map((entry) => {
+    const { plugin, releaseTag, publishedAt, repo } = entry;
+    const shortName = plugin.name || plugin.title.split("/").pop();
+    const docTiddlerTitle = `Plugin: ${shortName}`;
+    const desc = (plugin.description || "")
+      .replace(/\|/g, "&#124;")
+      .replace(/\r?\n/g, " ");
+    const ver = plugin.version || releaseTag;
+    const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
+    return `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab;">📦 \`${plugin.title}\`</span></$draggable> |\`${ver}\` |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
+  });
+
+  const serverRows = serverDependentPlugins.map((entry) => {
+    const { plugin, releaseTag, publishedAt, repo } = entry;
+    const shortName = plugin.name || plugin.title.split("/").pop();
+    const docTiddlerTitle = `Plugin: ${shortName}`;
+    const desc = (plugin.description || "")
+      .replace(/\|/g, "&#124;")
+      .replace(/\r?\n/g, " ");
+    const ver = plugin.version || releaseTag;
+    const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
+    return `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff;">⚡ \`${plugin.title}\`</span></$draggable> |\`${ver}\` |<span style="color:#d46b08; font-weight:bold;">⚠️ Server Required</span> |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
+  });
+
+  // 4. Write the main landing page tiddler with separated sections
   const catalogWikitext = `title: ${homeTitle}
 tags: TableOfContents
 type: text/vnd.tiddlywiki
 
 Welcome to ''${manifest.libraryName}''. This library automatically aggregates the latest GitHub Releases across [[@${manifest.authorHandle}|https://github.com/${manifest.authorHandle}]]'s TiddlyWiki5 plugin repositories.
 
-!! 1. Add the Plugin Library (Recommended for 1-Click Updates)
+!! Add the Plugin Library (1-Click Updates)
 
 Drag and drop the following library configuration badge into your own TiddlyWiki, click ''Import'', and then open ''Control Panel -> Plugins -> Get more plugins'':
 
 * <$draggable tiddler="${configTitle}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.25em 0.7em; border-radius:1em;">📦 ${manifest.libraryName} (Drag to your TiddlyWiki)</span></$draggable> — or drag the tiddler link directly: [[${configTitle}]]
 * ''Library Endpoint URL'': \`${libraryConfigTiddler.url}\`
 
-!! 2. Available Plugins (${collectedPlugins.length})
+!! Standard Client Plugins (${standardPlugins.length})
 
-Click any plugin name below to read its documentation, or drag its pill directly into your wiki:
+These plugins run entirely within your browser or standard TiddlyWiki instance without requiring any server infrastructure or external services. Click any plugin name below to read its documentation, or drag its badge directly into your wiki:
 
 |!Plugin & Docs |!Drag to Install |!Version |!Description |!Updated |!Source Repository |
-${rows.join("\n") || "|//No plugins published yet// | | | | | |"}
+${standardRows.join("\n") || "|//No standard plugins published yet// | | | | | |"}
+
+!! Server-Dependent Plugins: TiddlyPWA Architecture (${serverDependentPlugins.length})
+
+<div style="background-color: #fafafa; border: 1px solid #e2e8f0; border-left: 5px solid #d46b08; border-radius: 6px; padding: 18px 22px; margin: 1.5em 0;">
+
+<div style="font-size: 1.15em; font-weight: bold; color: #d46b08; margin-bottom: 8px;">
+💡 Understanding TiddlyPWA & The Sync Server Architecture
+</div>
+
+<p style="margin-top: 0; color: #4a5568; line-height: 1.5;">
+Unlike traditional plugins that run purely inside a single-file wiki, <strong>TiddlyPWA</strong> turns TiddlyWiki into a full <strong>Progressive Web App (PWA)</strong> with encrypted real-time synchronization across your devices.
+</p>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 16px 0;">
+
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px;">
+<div style="font-weight: bold; color: #2d3748; margin-bottom: 6px;">🔐 Zero-Knowledge Encryption</div>
+<div style="font-size: 0.9em; color: #4a5568; line-height: 1.45;">
+All tiddlers are encrypted locally (AES-GCM / Argon2id) before leaving your browser. The server only stores ciphertext blobs—it never sees your keys or plaintext notes.
+</div>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px;">
+<div style="font-weight: bold; color: #2d3748; margin-bottom: 6px;">🔄 Why a Backend Server is Needed</div>
+<div style="font-size: 0.9em; color: #4a5568; line-height: 1.45;">
+A companion server (Deno 2 + SQLite) coordinates real-time updates via Server-Sent Events (SSE) and handles Optimistic Concurrency Control (OCC) to prevent conflicting edits.
+</div>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px;">
+<div style="font-weight: bold; color: #2d3748; margin-bottom: 6px;">🚀 Lightweight Self-Hosting</div>
+<div style="font-size: 0.9em; color: #4a5568; line-height: 1.45;">
+The sync backend runs with a minimal CPU/RAM footprint. Deploy via Docker:<br/>
+<code style="display:inline-block; margin-top:4px; font-size:0.85em; background:#f7fafc; padding:2px 6px; border:1px solid #edf2f7; border-radius:3px;">docker run -d -p 8080:8000 ghcr.io/mblackman/tiddlypwa:latest</code>
+</div>
+</div>
+
+</div>
+
+<p style="margin-bottom: 0; font-size: 0.92em;">
+📖 Setup Guide: <a href="https://github.com/mblackman/tiddlypwa#quick-start-with-docker" target="_blank" rel="noopener">Docker Quick Start</a> &bull; <a href="https://github.com/mblackman/tiddlypwa/tree/trunk/docs" target="_blank" rel="noopener">Architecture Documentation Suite</a> &bull; <a href="https://github.com/mblackman/tiddlypwa" target="_blank" rel="noopener">GitHub Repository</a>
+</p>
+
+</div>
+
+|!Plugin & Docs |!Drag to Install |!Version |!Requirement |!Description |!Updated |!Source Repository |
+${serverRows.join("\n") || "|//No server-dependent plugins published yet// | | | | | | |"}
 `;
 
   await fs.writeFile(path.join(TIDDLERS_DIR, "PluginLibraryCatalog.tid"), catalogWikitext, "utf8");
@@ -398,6 +529,16 @@ ${rows.join("\n") || "|//No plugins published yet// | | | | | |"}
     },
   ];
 
+  // Disable all hosted plugins within the showcase wiki itself
+  // This prevents hosted plugins (such as TiddlyPWA syncadaptor, login dialogs, or custom UI overrides)
+  // from executing on the library site, while preserving them in the store for drag-and-drop installation.
+  for (const { plugin } of collectedPlugins) {
+    uiConfigTiddlers.push({
+      title: `$:/config/Plugins/Disabled/${plugin.title}`,
+      text: "yes",
+    });
+  }
+
   await fs.writeFile(
     path.join(TIDDLERS_DIR, "UIConfigTiddlers.json"),
     JSON.stringify(uiConfigTiddlers, null, 2),
@@ -421,6 +562,12 @@ async function main() {
 
   for (const repoEntry of manifest.repositories) {
     const repo = typeof repoEntry === "string" ? repoEntry : repoEntry.repo;
+    const isServerDependent = Boolean(
+      typeof repoEntry === "object" &&
+        (repoEntry.serverDependent || repoEntry.category === "server-dependent")
+    );
+    const serverDescription =
+      typeof repoEntry === "object" ? repoEntry.serverDescription : "";
     const assetPattern =
       typeof repoEntry === "object" && repoEntry.assetRegex
         ? new RegExp(repoEntry.assetRegex)
@@ -463,6 +610,8 @@ async function main() {
       releaseTag: release.tag_name,
       publishedAt: release.published_at,
       htmlUrl: release.html_url,
+      serverDependent: isServerDependent,
+      serverDescription,
       fingerprint,
       assets: jsonAssets.map((a) => ({
         id: a.id,
@@ -497,6 +646,12 @@ async function main() {
         const plugins = extractPluginTiddlers(parsed, repo);
 
         for (const plugin of plugins) {
+          const isPluginServerDependent = Boolean(
+            meta.serverDependent ||
+            plugin.title === "$:/plugins/mblackman/tiddlypwa" ||
+            plugin["server-dependent"] === "yes"
+          );
+
           const existing = pluginsByTitle.get(plugin.title);
           if (
             !existing ||
@@ -508,6 +663,8 @@ async function main() {
               releaseTag: meta.releaseTag,
               publishedAt: meta.publishedAt,
               htmlUrl: meta.htmlUrl,
+              serverDependent: isPluginServerDependent,
+              serverDescription: meta.serverDescription,
             });
           }
         }
@@ -528,13 +685,16 @@ async function main() {
   const libraryManifestArray = [];
   const fullPluginMap = {};
 
-  for (const { plugin, releaseTag, repo } of collectedPlugins) {
+  for (const { plugin, releaseTag, repo, serverDependent } of collectedPlugins) {
     const cleanPlugin = {
       ...plugin,
       "source-library": manifest.libraryBaseUrl,
       "source-repo": `https://github.com/${repo}`,
       "library-release-tag": releaseTag,
     };
+    if (serverDependent) {
+      cleanPlugin["server-dependent"] = "yes";
+    }
     delete cleanPlugin._sourceRepo;
 
     fullPluginMap[cleanPlugin.title] = cleanPlugin;

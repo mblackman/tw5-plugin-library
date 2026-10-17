@@ -10,6 +10,13 @@
     { "repo": "mblackman/tiddlywiki-media-importer" },
     { "repo": "mblackman/tiddlywiki-coffee-tracker" },
     { "repo": "mblackman/tiddlywiki-journal" },
-    { "repo": "mblackman/tiddlywiki-dayjs-plugin" }
+    { "repo": "mblackman/tiddlywiki-dayjs-plugin" },
+    {
+      "repo": "mblackman/tiddlypwa",
+      "assetRegex": "^tiddlypwa\\.json$",
+      "serverDependent": true,
+      "category": "server-dependent",
+      "serverDescription": "Offline-first encrypted PWA sync (requires TiddlyPWA sync server backend)"
+    }
   ]
 }

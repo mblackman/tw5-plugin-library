@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-17T01:34:15.578Z",
+  "updatedAt": "2026-10-17T19:22:46.457Z",
   "repositories": {
     "mblackman/tiddlywiki-slipstream": {
       "releaseTag": "v0.2.1",
@@ -25,6 +25,11 @@
       "releaseTag": "v1.11.19",
       "publishedAt": "2026-01-02T05:19:24Z",
       "fingerprint": "v1.11.19:335414395-2026-01-02T05:19:24Z"
+    },
+    "mblackman/tiddlypwa": {
+      "releaseTag": "v0.3.3",
+      "publishedAt": "2026-10-07T22:47:57Z",
+      "fingerprint": "v0.3.3:620022924-2026-10-07T22:47:57Z"
     }
   }
 }
