@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-17T20:23:55.450Z",
+  "updatedAt": "2026-10-17T20:31:10.768Z",
   "repositories": {
     "mblackman/tiddlywiki-slipstream": {
       "releaseTag": "v0.2.3",
@@ -7,9 +7,9 @@
       "fingerprint": "v0.2.3:651508407-2026-10-17T20:22:51Z"
     },
     "mblackman/tiddlywiki-timelord": {
-      "releaseTag": "v0.0.11",
-      "publishedAt": "2026-04-22T14:43:26Z",
-      "fingerprint": "v0.0.11:402596968-2026-04-22T14:43:26Z"
+      "releaseTag": "v0.0.12",
+      "publishedAt": "2026-10-17T20:30:16Z",
+      "fingerprint": "v0.0.12:651523176-2026-10-17T20:30:16Z"
     },
     "mblackman/tiddlywiki-media-importer": {
       "releaseTag": "v0.2.8",
