@@ -180,18 +180,18 @@ function extractPluginReadme(pluginTiddler, options = {}) {
 
   if (includeNotice) {
     if (pluginTiddler.title === "$:/plugins/mblackman/tiddlypwa") {
-      const notice = `//''⚠️ Requirements'': This plugin requires running a companion [[TiddlyPWA sync backend server|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] (Docker / Deno 2 + SQLite) and installing the companion [[$:/plugins/mblackman/web-app-manifest]] prerequisite plugin.//\n\n`;
-      if (!readme.includes("TiddlyPWA sync backend server")) {
+      const notice = `//''Heads up'': This plugin needs a running [[TiddlyPWA sync server|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] and the [[$:/plugins/mblackman/web-app-manifest]] plugin.//\n\n`;
+      if (!readme.includes("TiddlyPWA sync")) {
         readme = notice + readme;
       }
     } else if (pluginTiddler.title === "$:/plugins/mblackman/web-app-manifest") {
-      const notice = `//''ℹ️ TiddlyPWA Prerequisite'': This plugin is a required dependency for [[$:/plugins/mblackman/tiddlypwa]] to properly initialize Progressive Web App features and browser manifest registration.//\n\n`;
-      if (!readme.includes("TiddlyPWA Prerequisite")) {
+      const notice = `//''Note'': Needed if you're using [[$:/plugins/mblackman/tiddlypwa]], or if you just want your wiki to be installable as a web app.//\n\n`;
+      if (!readme.includes("installable as a web app")) {
         readme = notice + readme;
       }
     } else if (pluginTiddler["server-dependent"] === "yes") {
-      const notice = `//''⚠️ Backend Server Required'': This plugin requires running a companion backend server.//\n\n`;
-      if (!readme.includes("Backend Server Required")) {
+      const notice = `//''Heads up'': This plugin requires a companion backend server.//\n\n`;
+      if (!readme.includes("companion backend server")) {
         readme = notice + readme;
       }
     }
@@ -289,7 +289,7 @@ window.addEventListener("message", function(event) {
 </head>
 <body>
 <h1>${libraryTitle}</h1>
-<p>This is a TiddlyWiki5 plugin library endpoint. To install plugins, open the main library wiki at <a href="../../index.html">../../index.html</a> and drag the plugin library configuration tiddler into your TiddlyWiki.</p>
+<p>This is a TiddlyWiki5 plugin library endpoint. To browse and install plugins, head over to <a href="../../index.html">the main library page</a> and drag the library badge into your wiki.</p>
 </body>
 </html>
 `;
@@ -303,7 +303,7 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
   await fs.mkdir(TIDDLERS_DIR, { recursive: true });
 
   const configTitle = `$:/config/${manifest.authorHandle}/PluginLibrary`;
-  const homeTitle = "Mblackman TiddlyWiki Plugin Library";
+  const homeTitle = manifest.libraryName || "Matt Blackman's TiddlyWiki Plugin Library";
 
   // 1. Write the draggable $:/tags/PluginLibrary configuration tiddler
   const libraryConfigTiddler = {
@@ -368,55 +368,34 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
 
     const shortName = plugin.name || plugin.title.split("/").pop();
     const docTiddlerTitle = `Plugin: ${shortName}`;
-    const desc = (plugin.description || "")
-      .replace(/\|/g, "&#124;")
-      .replace(/\r?\n/g, " ");
     const ver = plugin.version || releaseTag;
     const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
 
     let serverNoticeWikitext = "";
-    let serverTableRows = "";
-    let suiteRoleRow = "";
+    let extraTableRows = "";
 
     if (isTiddlyPwaSync) {
       serverNoticeWikitext = `
-<div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 5px solid #d46b08; padding: 14px 18px; margin: 1.2em 0; border-radius: 4px; color: #873800;">
-<h3 style="margin-top:0; color:#d46b08;">⚠️ Companion Backend Server & Manifest Plugin Required</h3>
-<p style="margin-bottom:0.6em;">''${shortName}'' is part of an <strong>offline-first synchronized architecture</strong> requiring a running companion backend server and the web app manifest prerequisite plugin.</p>
-<ul style="margin-bottom:0.6em; padding-left:1.5em;">
-<li><strong>Required Prerequisite</strong>: Install the companion <$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.15em 0.5em; border-radius:1em;">📦 [[web-app-manifest|Plugin: Web App Manifest]]</span></$draggable> plugin. TiddlyPWA requires this plugin to generate the web app manifest and register PWA installation with the browser.</li>
-<li><strong>Zero-Knowledge Encryption</strong>: All tiddlers are encrypted locally on your device (AES-GCM / Argon2id) before transmission; the sync server only stores ciphertext and never sees your plaintext content or encryption keys.</li>
-<li><strong>Multi-Device Real-Time Sync</strong>: Streams updates across all open devices in real time via Server-Sent Events (SSE) and WebSocket/JSON-RPC.</li>
-<li><strong>Conflict Resolution</strong>: Optimistic Concurrency Control (OCC) detects concurrent edits across multiple devices and provides non-destructive resolution workflows.</li>
-</ul>
-<p style="margin-bottom:0;">👉 View setup instructions in the [[TiddlyPWA Repository|https://github.com/${repo}]] and the [[Docker Quick Start Guide|https://github.com/${repo}#quick-start-with-docker]].</p>
+<div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 4px solid #d46b08; padding: 12px 16px; margin: 1em 0; border-radius: 4px; color: #873800;">
+<strong>Heads up — requires a sync server & companion plugin</strong>
+<p style="margin: 0.4em 0 0 0;">To use TiddlyPWA, you'll also need to install <$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.15em 0.5em; border-radius:1em;">📦 [[web-app-manifest|Plugin: Web App Manifest]]</span></$draggable> and run the companion sync server. Check out the [[Docker Quick Start|https://github.com/${repo}#quick-start-with-docker]] to get the server running.</p>
 </div>
 `;
-      serverTableRows = `
-|!Prerequisite Plugin |<$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag web-app-manifest</span></$draggable> &bull; [[Plugin: Web App Manifest]] (''Required'' for proper operation) |
-|!Server Requirement |<span style="color:#d46b08; font-weight:bold;">⚠️ Companion Backend Server Required</span> (Deno 2 + SQLite) |
-|!Backend Deployment |[[Docker Quick Start|https://github.com/${repo}#quick-start-with-docker]] &bull; [[Architecture Specs|https://github.com/${repo}/tree/trunk/docs]] |`;
-      suiteRoleRow = `\n|!Suite Role |<span style="color:#d46b08; font-weight:bold;">⚡ Core Sync Adaptor</span> (Requires backend + manifest) |`;
+      extraTableRows = `\n|!Requires |<$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.15em 0.5em; border-radius:1em;">📦 web-app-manifest</span></$draggable> + [[TiddlyPWA Sync Server|https://github.com/${repo}#quick-start-with-docker]] |`;
     } else if (isManifest) {
       serverNoticeWikitext = `
-<div style="background-color: #e6f7ff; border: 1px solid #91d5ff; border-left: 5px solid #1890ff; padding: 14px 18px; margin: 1.2em 0; border-radius: 4px; color: #003a8c;">
-<h3 style="margin-top:0; color:#096dd9;">ℹ️ Required Prerequisite for TiddlyPWA</h3>
-<p style="margin-bottom:0.6em;">This plugin dynamically generates and registers the browser Web App Manifest (<code>manifest.json</code>) and is a <strong>required dependency for [[TiddlyPWA|Plugin: TiddlyPWA]]</strong> to function properly as an installable Progressive Web App.</p>
-<p style="margin-bottom:0;">When installing TiddlyPWA, make sure to drag both this manifest plugin and the core syncadaptor: <$draggable tiddler="$:/plugins/mblackman/tiddlypwa"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff; padding:0.15em 0.5em; border-radius:1em;">⚡ Drag TiddlyPWA</span></$draggable>.</p>
+<div style="background-color: #e6f7ff; border: 1px solid #91d5ff; border-left: 4px solid #1890ff; padding: 12px 16px; margin: 1em 0; border-radius: 4px; color: #003a8c;">
+<strong>Part of the TiddlyPWA setup</strong>
+<p style="margin: 0.4em 0 0 0;">This generates the browser <code>manifest.json</code> so your wiki can be installed as an app. It's required if you're using [[TiddlyPWA|Plugin: TiddlyPWA]], though it works fine on its own too.</p>
 </div>
 `;
-      serverTableRows = `
-|!Companion Core Plugin |<$draggable tiddler="$:/plugins/mblackman/tiddlypwa"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">⚡ Drag TiddlyPWA</span></$draggable> &bull; [[Plugin: TiddlyPWA]] |`;
-      suiteRoleRow = `\n|!Suite Role |<span style="color:#096dd9; font-weight:bold;">📦 Required Prerequisite</span> for [[Plugin: TiddlyPWA]] |`;
+      extraTableRows = `\n|!Companion Plugin |[[Plugin: TiddlyPWA]] |`;
     } else if (serverDependent) {
       serverNoticeWikitext = `
-<div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 5px solid #d46b08; padding: 14px 18px; margin: 1.2em 0; border-radius: 4px; color: #873800;">
-<h3 style="margin-top:0; color:#d46b08;">⚠️ Companion Backend Server Required</h3>
-<p style="margin-bottom:0.6em;">Unlike standard client-only TiddlyWiki plugins that execute solely within the browser, ''${shortName}'' requires a running companion backend server.</p>
+<div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 4px solid #d46b08; padding: 12px 16px; margin: 1em 0; border-radius: 4px; color: #873800;">
+<strong>Heads up:</strong> Unlike regular client-only plugins, ''${shortName}'' needs a companion backend server to work.
 </div>
 `;
-      serverTableRows = `
-|!Requirement |<span style="color:#d46b08; font-weight:bold;">⚠️ Companion Backend Server Required</span> |`;
     }
 
     const rawReadme = extractPluginReadme(cleanTiddler, { includeNotice: false });
@@ -424,19 +403,16 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     // Create a non-system documentation tiddler so the plugin appears in standard search and TableOfContents
     const docTiddler = {
       title: docTiddlerTitle,
-      tags: `[[${homeTitle}]] Plugins${serverDependent ? " [[Server-Dependent Plugins]]" : ""}${isTiddlyPwaSync || isManifest ? " [[TiddlyPWA Suite]]" : ""}`,
+      tags: `[[${homeTitle}]] Plugins${serverDependent ? " [[TiddlyPWA]]" : ""}`,
       caption: shortName,
       "plugin-tiddler": plugin.title,
       version: ver,
       repository: `https://github.com/${repo}`,
       "server-dependent": isServerCore ? "yes" : "no",
       type: "text/vnd.tiddlywiki",
-      text: `${serverNoticeWikitext}|!Plugin Title |\`${plugin.title}\` |
-|!Install Badge |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${isServerCore ? "#d46b08" : "#2b6cb0"}; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag ${shortName} v${ver} to your wiki</span></$draggable> |
-|!Version |\`${ver}\` ([[Release ${releaseTag}|${htmlUrl || `https://github.com/${repo}/releases`}]]) |${suiteRoleRow}
-|!Architecture |${isServerCore ? "⚠️ ''Server-Dependent'' (Requires TiddlyPWA Sync Server)" : isManifest ? "PWA Manifest Generator (Client-side prerequisite)" : "Standard Client Plugin (No Server Required)"} |
-|!Updated |${dateStr} |
-|!Repository |[[${repo}|https://github.com/${repo}]] |${serverTableRows}
+      text: `${serverNoticeWikitext}|!Install |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${isServerCore ? "#d46b08" : "#2b6cb0"}; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag ${shortName} v${ver} to your wiki</span></$draggable> |
+|!Version |\`${ver}\` (${dateStr ? `updated ${dateStr} · ` : ""}[[Release notes|${htmlUrl || `https://github.com/${repo}/releases`}]]) |
+|!Source |[[${repo}|https://github.com/${repo}]] (\`${plugin.title}\`) |${extraTableRows}
 
 ---
 
@@ -451,41 +427,42 @@ ${rawReadme || `//No readme found in \`${plugin.title}\`.//`}
     );
   }
 
-  const standardRows = standardPlugins.map((entry) => {
-    const { plugin, releaseTag, publishedAt, repo } = entry;
-    const shortName = plugin.name || plugin.title.split("/").pop();
-    const docTiddlerTitle = `Plugin: ${shortName}`;
-    const desc = (plugin.description || "")
+  // Clean up small typos from upstream plugin descriptions on the overview table
+  const formatDesc = (raw) =>
+    (raw || "")
+      .replace(/Manage you media/i, "Manage your media")
       .replace(/\|/g, "&#124;")
       .replace(/\r?\n/g, " ");
+
+  const standardRows = standardPlugins.map((entry) => {
+    const { plugin, releaseTag, repo } = entry;
+    const shortName = plugin.name || plugin.title.split("/").pop();
+    const docTiddlerTitle = `Plugin: ${shortName}`;
+    const desc = formatDesc(plugin.description);
     const ver = plugin.version || releaseTag;
-    const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
-    return `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab;">📦 \`${plugin.title}\`</span></$draggable> |\`${ver}\` |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
+    return `|[[${shortName}|${docTiddlerTitle}]] |${desc} |\`${ver}\` |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.15em 0.55em; border-radius:1em;">📦 Drag to wiki</span></$draggable> |[[GitHub|https://github.com/${repo}]] |`;
   });
 
   const serverRows = serverDependentPlugins.map((entry) => {
-    const { plugin, releaseTag, publishedAt, repo } = entry;
+    const { plugin, releaseTag, repo } = entry;
     const shortName = plugin.name || plugin.title.split("/").pop();
     const docTiddlerTitle = `Plugin: ${shortName}`;
-    const desc = (plugin.description || "")
-      .replace(/\|/g, "&#124;")
-      .replace(/\r?\n/g, " ");
+    const desc = formatDesc(plugin.description);
     const ver = plugin.version || releaseTag;
-    const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
 
-    let requirementCol = `<span style="color:#d46b08; font-weight:bold;">⚠️ Server Required</span>`;
+    let noteCol = "Needs sync server";
     let badgeColor = "#d46b08";
     let icon = "⚡";
 
     if (plugin.title === "$:/plugins/mblackman/web-app-manifest") {
-      requirementCol = `<span style="color:#096dd9; font-weight:bold;">📦 Required Prerequisite</span><br/><span style="font-size:0.85em; color:#4a5568;">Must be installed for TiddlyPWA</span>`;
+      noteCol = "Required by TiddlyPWA";
       badgeColor = "#2b6cb0";
       icon = "📦";
     } else if (plugin.title === "$:/plugins/mblackman/tiddlypwa") {
-      requirementCol = `<span style="color:#d46b08; font-weight:bold;">⚡ Core Sync Adaptor</span><br/><span style="font-size:0.85em; color:#d46b08;">⚠️ Server + web-app-manifest required</span>`;
+      noteCol = "Needs server + manifest plugin";
     }
 
-    return `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${badgeColor}; color:#ffffff;">${icon} \`${plugin.title}\`</span></$draggable> |\`${ver}\` |${requirementCol} |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
+    return `|[[${shortName}|${docTiddlerTitle}]] |${desc} |${noteCol} |\`${ver}\` |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${badgeColor}; color:#ffffff; padding:0.15em 0.55em; border-radius:1em;">${icon} Drag to wiki</span></$draggable> |[[GitHub|https://github.com/${repo}]] |`;
   });
 
   // 4. Write starter notebook documentation tiddler
@@ -495,31 +472,25 @@ ${rawReadme || `//No readme found in \`${plugin.title}\`.//`}
     tags: `[[${homeTitle}]] TableOfContents`,
     caption: "Starter Notebook (empty.html)",
     type: "text/vnd.tiddlywiki",
-    text: `<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; padding: 16px 20px; margin: 1.2em 0; border-radius: 6px; color: #166534;">
-<h3 style="margin-top:0; color:#15803d;">✨ Starter Notebook with @${manifest.authorHandle} Plugins Pre-Installed</h3>
-<p style="margin-bottom:0.8em; color:#1e293b; line-height: 1.5;">
-Similar to the official TiddlyWiki <code>empty.html</code>, this is a clean, blank single-file notebook containing all client-side plugins published by @${manifest.authorHandle}, along with the plugin library endpoint pre-configured for automatic 1-click updates.
-</p>
-<div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-<a href="empty.html" download="empty.html" style="background-color:#16a34a; color:#ffffff; padding:0.5em 1.2em; border-radius:4px; text-decoration:none; font-weight:bold; display:inline-flex; align-items:center; gap:8px;">
+    text: `If you're starting a brand new wiki and want all of my regular plugins ready to go out of the box, grab this starter file.
+
+It's just the standard TiddlyWiki \`empty.html\` with my client-side plugins and this plugin library already installed.
+
+<div style="margin: 1.2em 0; display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+<a href="empty.html" download="empty.html" style="background-color:#16a34a; color:#ffffff; padding:0.5em 1.1em; border-radius:4px; text-decoration:none; font-weight:bold; display:inline-flex; align-items:center; gap:6px;">
 ⬇️ Download empty.html
 </a>
 <a href="empty.html" target="_blank" rel="noopener" style="color:#15803d; font-weight:600; text-decoration:underline;">
-Open in New Tab &rarr;
+Preview in a new tab &rarr;
 </a>
 </div>
-</div>
 
-! Included Plugins (${standardPlugins.length})
+!! What's inside
 
-The following client-side plugins are pre-installed and ready to use in this starter notebook:
+|!Plugin |!Version |!What it does |
+${standardPlugins.map((e) => `|[[${e.plugin.name || e.plugin.title.split("/").pop()}|Plugin: ${e.plugin.name || e.plugin.title.split("/").pop()}]] |\`${e.plugin.version || e.releaseTag}\` |${formatDesc(e.plugin.description)} |`).join("\n")}
 
-|!Plugin |!Version |!Description |
-${standardPlugins.map((e) => `|[[${e.plugin.name || e.plugin.title.split("/").pop()}|Plugin: ${e.plugin.name || e.plugin.title.split("/").pop()}]] |\`${e.plugin.version || e.releaseTag}\` |${(e.plugin.description || "").replace(/\|/g, "&#124;").replace(/\r?\n/g, " ")} |`).join("\n")}
-
-! Pre-Configured Plugin Library
-
-The starter notebook also has the [[${manifest.libraryName}|$:/config/${manifest.authorHandle}/PluginLibrary]] endpoint pre-installed. Whenever new plugin versions are released, you can upgrade with one click directly in ''Control Panel -> Plugins -> Get more plugins''.
+The [[plugin library|$:/config/${manifest.authorHandle}/PluginLibrary]] is also pre-configured, so whenever I push a new release you can update straight from ''Control Panel → Plugins → Get more plugins''.
 `,
   };
   await fs.writeFile(
@@ -528,91 +499,47 @@ The starter notebook also has the [[${manifest.libraryName}|$:/config/${manifest
     "utf8"
   );
 
-  // 5. Write the main landing page tiddler with separated sections
+  // 5. Write the main landing page tiddler
   const catalogWikitext = `title: ${homeTitle}
 tags: TableOfContents
 list: [[${starterTiddlerTitle}]]
 type: text/vnd.tiddlywiki
 
-Welcome to ''${manifest.libraryName}''. This library automatically aggregates the latest GitHub Releases across [[@${manifest.authorHandle}|https://github.com/${manifest.authorHandle}]]'s TiddlyWiki5 plugin repositories.
+Hi! This is where I keep the TiddlyWiki plugins I've built. Whenever I cut a new release on [[GitHub|https://github.com/${manifest.authorHandle}]], this page updates automatically.
 
-<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; padding: 12px 18px; margin: 1.2em 0; border-radius: 6px; color: #166534;">
-<strong>✨ Quick Start:</strong> Looking to start a brand new notebook? See [[${starterTiddlerTitle}]] to download or preview a ready-to-use <code>empty.html</code> with all standard client plugins already installed.
-</div>
+!! How to install
 
-!! Add the Plugin Library (1-Click Updates)
+The easiest way to install and update these plugins is to add my library to your wiki:
 
-Drag and drop the following library configuration badge into your own TiddlyWiki, click ''Import'', and then open ''Control Panel -> Plugins -> Get more plugins'':
+# Drag this badge into your TiddlyWiki window: <$draggable tiddler="${configTitle}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.25em 0.7em; border-radius:1em;">📦 ${manifest.libraryName}</span></$draggable> and click ''Import''.
+# Open ''Control Panel → Plugins → Get more plugins'' to browse, install, or grab updates with one click.
 
-* <$draggable tiddler="${configTitle}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.25em 0.7em; border-radius:1em;">📦 ${manifest.libraryName} (Drag to your TiddlyWiki)</span></$draggable> — or drag the tiddler link directly: [[${configTitle}]]
-* ''Library Endpoint URL'': \`${libraryConfigTiddler.url}\`
+//Just want to try one out?// You can also drag any individual plugin's ''📦 Drag to wiki'' button from the tables below straight into your wiki.
 
-!! Standard Client Plugins (${standardPlugins.length})
+//Starting fresh?// Grab the [[${starterTiddlerTitle}]] — a blank TiddlyWiki with all of the regular plugins below pre-installed.
 
-These plugins run entirely within your browser or standard TiddlyWiki instance without requiring any server infrastructure or external services. Click any plugin name below to read its documentation, or drag its badge directly into your wiki:
+!! Plugins
 
-|!Plugin & Docs |!Drag to Install |!Version |!Description |!Updated |!Source Repository |
-${standardRows.join("\n") || "|//No standard plugins published yet// | | | | | |"}
+These run right in your browser like normal TiddlyWiki plugins — no server or extra setup needed. Click a plugin's name to see its README and usage notes.
 
-!! TiddlyPWA Progressive Web App Suite (${serverDependentPlugins.length} Plugins)
+|!Plugin |!What it does |!Version |!Install |!Code |
+${standardRows.join("\n") || "|//No plugins published yet// | | | | |"}
 
-<div style="background-color: #fafafa; border: 1px solid #e2e8f0; border-left: 5px solid #d46b08; border-radius: 6px; padding: 18px 22px; margin: 1.5em 0;">
+!! TiddlyPWA (Self-Hosted Sync)
 
-<div style="font-size: 1.15em; font-weight: bold; color: #d46b08; margin-bottom: 8px;">
-💡 Understanding TiddlyPWA & The Sync Server Architecture
-</div>
+[[TiddlyPWA|Plugin: TiddlyPWA]] turns TiddlyWiki into an installable offline-first web app that syncs across your devices in real time. Your tiddlers are encrypted locally in your browser before they ever touch the server, so the server only sees encrypted blobs.
 
-<p style="margin-top: 0; color: #4a5568; line-height: 1.5;">
-Unlike traditional plugins that run purely inside a single-file wiki, <strong>TiddlyPWA</strong> turns TiddlyWiki into a full <strong>Progressive Web App (PWA)</strong> with encrypted real-time synchronization across your devices.
-</p>
+Because it syncs across devices, it needs a little more setup than a regular plugin:
+* ''Both plugins below'' need to be installed in your wiki (the manifest generator + the sync adaptor).
+* ''A lightweight sync server'' (Deno + SQLite) needs to be running somewhere you control. It's easy to spin up with Docker — check the [[Quick Start guide|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] for details.
 
-<div style="background:#fffbe6; border:1px solid #ffe58f; padding:12px 16px; border-radius:5px; color:#ad6800; font-size:0.95em; line-height:1.55; margin:14px 0;">
-<strong>⚠️ Installation Requirement:</strong> The TiddlyPWA suite consists of two complementary plugins. <strong>Both must be installed together</strong> in your TiddlyWiki for TiddlyPWA to operate properly:
-<div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-<div><strong>1. Prerequisite:</strong> <$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag web-app-manifest</span></$draggable> — Generates the browser Web App Manifest (required for PWA initialization).</div>
-<div><strong>2. Core Sync Adaptor:</strong> <$draggable tiddler="$:/plugins/mblackman/tiddlypwa"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">⚡ Drag tiddlypwa</span></$draggable> — Provides offline-first zero-knowledge encrypted multi-device sync with the backend.</div>
-</div>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 16px 0;">
-
-<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px;">
-<div style="font-weight: bold; color: #2d3748; margin-bottom: 6px;">🔐 Zero-Knowledge Encryption</div>
-<div style="font-size: 0.9em; color: #4a5568; line-height: 1.45;">
-All tiddlers are encrypted locally (AES-GCM / Argon2id) before leaving your browser. The server only stores ciphertext blobs—it never sees your keys or plaintext notes.
-</div>
-</div>
-
-<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px;">
-<div style="font-weight: bold; color: #2d3748; margin-bottom: 6px;">🔄 Why a Backend Server is Needed</div>
-<div style="font-size: 0.9em; color: #4a5568; line-height: 1.45;">
-A companion server (Deno 2 + SQLite) coordinates real-time updates via Server-Sent Events (SSE) and handles Optimistic Concurrency Control (OCC) to prevent conflicting edits.
-</div>
-</div>
-
-<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px;">
-<div style="font-weight: bold; color: #2d3748; margin-bottom: 6px;">🚀 Lightweight Self-Hosting</div>
-<div style="font-size: 0.9em; color: #4a5568; line-height: 1.45;">
-The sync backend runs with a minimal CPU/RAM footprint. Deploy via Docker:<br/>
-<code style="display:inline-block; margin-top:4px; font-size:0.85em; background:#f7fafc; padding:2px 6px; border:1px solid #edf2f7; border-radius:3px;">docker run -d -p 8080:8000 ghcr.io/mblackman/tiddlypwa:latest</code>
-</div>
-</div>
-
-</div>
-
-<p style="margin-bottom: 0; font-size: 0.92em;">
-📖 Setup Guide: <a href="https://github.com/mblackman/tiddlypwa#quick-start-with-docker" target="_blank" rel="noopener">Docker Quick Start</a> &bull; <a href="https://github.com/mblackman/tiddlypwa/tree/trunk/docs" target="_blank" rel="noopener">Architecture Documentation Suite</a> &bull; <a href="https://github.com/mblackman/tiddlypwa" target="_blank" rel="noopener">GitHub Repository</a>
-</p>
-
-</div>
-
-|!Plugin & Docs |!Drag to Install |!Version |!Requirement / Role |!Description |!Updated |!Source Repository |
-${serverRows.join("\n") || "|//No server-dependent plugins published yet// | | | | | | |"}
+|!Plugin |!What it does |!Notes |!Version |!Install |!Code |
+${serverRows.join("\n") || "|//No server plugins published yet// | | | | | |"}
 `;
 
   await fs.writeFile(path.join(TIDDLERS_DIR, "PluginLibraryCatalog.tid"), catalogWikitext, "utf8");
 
-  // 4. Write UI polish & read-only showcase configuration tiddlers
+  // 6. Write UI polish & read-only showcase configuration tiddlers
   const uiConfigTiddlers = [
     {
       title: "$:/SiteTitle",
@@ -624,7 +551,7 @@ ${serverRows.join("\n") || "|//No server-dependent plugins published yet// | | |
     },
     {
       title: "$:/DefaultTiddlers",
-      text: `[[${homeTitle}]]`,
+      text: `[[${homeTitle}]] [[${starterTiddlerTitle}]]`,
     },
     // Prevent "Leave site? Unsaved changes" browser prompt when visitors click around the demo site
     {

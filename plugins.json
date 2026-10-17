@@ -1,6 +1,6 @@
 {
   "libraryName": "Matt Blackman's TiddlyWiki Plugin Library",
-  "libraryDescription": "Official TiddlyWiki5 plugin library for @mblackman plugins",
+  "libraryDescription": "TiddlyWiki5 plugins and themes by Matt Blackman (@mblackman)",
   "authorHandle": "mblackman",
   "libraryBaseUrl": "https://mblackman.github.io/tw5-plugin-library",
   "repositories": [
