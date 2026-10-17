@@ -488,12 +488,57 @@ ${rawReadme || `//No readme found in \`${plugin.title}\`.//`}
     return `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${badgeColor}; color:#ffffff;">${icon} \`${plugin.title}\`</span></$draggable> |\`${ver}\` |${requirementCol} |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
   });
 
-  // 4. Write the main landing page tiddler with separated sections
+  // 4. Write starter notebook documentation tiddler
+  const starterTiddlerTitle = "Starter Notebook (empty.html)";
+  const starterTiddler = {
+    title: starterTiddlerTitle,
+    tags: `[[${homeTitle}]] TableOfContents`,
+    caption: "Starter Notebook (empty.html)",
+    type: "text/vnd.tiddlywiki",
+    text: `<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; padding: 16px 20px; margin: 1.2em 0; border-radius: 6px; color: #166534;">
+<h3 style="margin-top:0; color:#15803d;">✨ Starter Notebook with @${manifest.authorHandle} Plugins Pre-Installed</h3>
+<p style="margin-bottom:0.8em; color:#1e293b; line-height: 1.5;">
+Similar to the official TiddlyWiki <code>empty.html</code>, this is a clean, blank single-file notebook containing all client-side plugins published by @${manifest.authorHandle}, along with the plugin library endpoint pre-configured for automatic 1-click updates.
+</p>
+<div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+<a href="empty.html" download="empty.html" style="background-color:#16a34a; color:#ffffff; padding:0.5em 1.2em; border-radius:4px; text-decoration:none; font-weight:bold; display:inline-flex; align-items:center; gap:8px;">
+⬇️ Download empty.html
+</a>
+<a href="empty.html" target="_blank" rel="noopener" style="color:#15803d; font-weight:600; text-decoration:underline;">
+Open in New Tab &rarr;
+</a>
+</div>
+</div>
+
+! Included Plugins (${standardPlugins.length})
+
+The following client-side plugins are pre-installed and ready to use in this starter notebook:
+
+|!Plugin |!Version |!Description |
+${standardPlugins.map((e) => `|[[${e.plugin.name || e.plugin.title.split("/").pop()}|Plugin: ${e.plugin.name || e.plugin.title.split("/").pop()}]] |\`${e.plugin.version || e.releaseTag}\` |${(e.plugin.description || "").replace(/\|/g, "&#124;").replace(/\r?\n/g, " ")} |`).join("\n")}
+
+! Pre-Configured Plugin Library
+
+The starter notebook also has the [[${manifest.libraryName}|$:/config/${manifest.authorHandle}/PluginLibrary]] endpoint pre-installed. Whenever new plugin versions are released, you can upgrade with one click directly in ''Control Panel -> Plugins -> Get more plugins''.
+`,
+  };
+  await fs.writeFile(
+    path.join(TIDDLERS_DIR, "Doc_Starter_Notebook.json"),
+    JSON.stringify([starterTiddler], null, 2),
+    "utf8"
+  );
+
+  // 5. Write the main landing page tiddler with separated sections
   const catalogWikitext = `title: ${homeTitle}
 tags: TableOfContents
+list: [[${starterTiddlerTitle}]]
 type: text/vnd.tiddlywiki
 
 Welcome to ''${manifest.libraryName}''. This library automatically aggregates the latest GitHub Releases across [[@${manifest.authorHandle}|https://github.com/${manifest.authorHandle}]]'s TiddlyWiki5 plugin repositories.
+
+<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; padding: 12px 18px; margin: 1.2em 0; border-radius: 6px; color: #166534;">
+<strong>✨ Quick Start:</strong> Looking to start a brand new notebook? See [[${starterTiddlerTitle}]] to download or preview a ready-to-use <code>empty.html</code> with all standard client plugins already installed.
+</div>
 
 !! Add the Plugin Library (1-Click Updates)
 
@@ -833,7 +878,81 @@ async function main() {
     { stdio: "inherit" }
   );
 
-  // 4. Update lockfile
+  // 4. Build starter notebook wiki (dist/empty.html & dist/Empty.html) via TiddlyWiki CLI
+  console.log("Building starter notebook wiki (dist/empty.html) via TiddlyWiki CLI...");
+  const emptyStagingDir = path.join(ROOT_DIR, ".empty-staging");
+  await fs.mkdir(emptyStagingDir, { recursive: true });
+
+  try {
+    const standardPlugins = collectedPlugins.filter((p) => !p.serverDependent);
+
+    // Stage standard (client-only) plugins without disabling them
+    for (const { plugin, releaseTag, repo } of standardPlugins) {
+      const cleanPlugin = {
+        ...plugin,
+        "source-library": manifest.libraryBaseUrl,
+        "source-repo": `https://github.com/${repo}`,
+        "library-release-tag": releaseTag,
+      };
+      delete cleanPlugin._sourceRepo;
+      delete cleanPlugin["server-dependent"];
+
+      const safeFile = plugin.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
+      await fs.writeFile(
+        path.join(emptyStagingDir, safeFile),
+        JSON.stringify([cleanPlugin], null, 2),
+        "utf8"
+      );
+    }
+
+    // Stage Plugin Library configuration so the new wiki can receive updates
+    const libraryConfigTiddler = {
+      title: `$:/config/${manifest.authorHandle}/PluginLibrary`,
+      tags: "$:/tags/PluginLibrary",
+      url: `${manifest.libraryBaseUrl.replace(/\/$/, "")}/recipes/library/index.html`,
+      caption: manifest.libraryName,
+      text: manifest.libraryDescription,
+    };
+    await fs.writeFile(
+      path.join(emptyStagingDir, "PluginLibraryConfig.json"),
+      JSON.stringify([libraryConfigTiddler], null, 2),
+      "utf8"
+    );
+
+    // Resolve path to official TiddlyWiki editions/empty so all official components & themes
+    // ($:/themes/tiddlywiki/vanilla, $:/themes/tiddlywiki/snowwhite, $:/core, $:/StoryList) are loaded
+    const twPackagePath = require.resolve("tiddlywiki/package.json");
+    const emptyEditionPath = path.join(path.dirname(twPackagePath), "editions", "empty");
+
+    // Render empty.html using the official TiddlyWiki editions/empty base
+    execFileSync(
+      "npx",
+      [
+        "tiddlywiki",
+        emptyEditionPath,
+        "--load",
+        emptyStagingDir,
+        "--output",
+        DIST_DIR,
+        "--render",
+        "$:/core/save/all",
+        "empty.html",
+        "text/plain",
+      ],
+      { stdio: "inherit" }
+    );
+
+    // Ensure case-insensitive access on static web hosts (empty.html and Empty.html)
+    await fs.copyFile(
+      path.join(DIST_DIR, "empty.html"),
+      path.join(DIST_DIR, "Empty.html")
+    );
+    console.log("Starter notebook generated -> dist/empty.html & dist/Empty.html");
+  } finally {
+    await fs.rm(emptyStagingDir, { recursive: true, force: true });
+  }
+
+  // 5. Update lockfile
   const updatedLock = {
     updatedAt: new Date().toISOString(),
     repositories: Object.fromEntries(

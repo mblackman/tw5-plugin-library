@@ -4,3 +4,5 @@ tiddlers/*.json
 tiddlers/*.tid
 !tiddlers/.gitkeep
 .DS_Store
+.empty-staging/
+

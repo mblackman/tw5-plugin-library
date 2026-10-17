@@ -2,8 +2,10 @@
 
 Centralized, self-updating [TiddlyWiki5](https://github.com/TiddlyWiki/TiddlyWiki5) plugin library for `@mblackman` plugins, hosted on GitHub Pages at:
 
-- **Interactive Showcase & Library Landing Page**: `https://mblackman.github.io/tw5-plugin-library/`
-- **Plugin Library Endpoint (`$:/tags/PluginLibrary`)**: `https://mblackman.github.io/tw5-plugin-library/recipes/library/index.html`
+- **Interactive Showcase & Library Site**: [https://mblackman.github.io/tw5-plugin-library/](https://mblackman.github.io/tw5-plugin-library/)
+- **Starter Empty Notebook (`empty.html`)**: [https://mblackman.github.io/tw5-plugin-library/empty.html](https://mblackman.github.io/tw5-plugin-library/empty.html)
+- **Plugin Library Endpoint (`$:/tags/PluginLibrary`)**: [https://mblackman.github.io/tw5-plugin-library/recipes/library/index.html](https://mblackman.github.io/tw5-plugin-library/recipes/library/index.html)
+
 
 ## Included Plugin Repositories
 
@@ -29,7 +31,16 @@ These plugins run client-side in any standard TiddlyWiki single-file or node env
   - *Deployment*: Docker image available at `ghcr.io/mblackman/tiddlypwa:latest`. See [Docker Quick Start Guide](https://github.com/mblackman/tiddlypwa#quick-start-with-docker) and [Architecture Specifications](https://github.com/mblackman/tiddlypwa/tree/trunk/docs).
 
 
-## Quick Start
+## Start a New Notebook Immediately
+
+To quickly start a new notebook with all standard client plugins already installed (without needing to install them individually):
+
+1. **Download the Starter Wiki**: Download [`empty.html`](https://mblackman.github.io/tw5-plugin-library/empty.html) directly or via the [Plugin Library Site](https://mblackman.github.io/tw5-plugin-library/).
+2. **Open in Browser**: Open the downloaded `empty.html` file in your browser.
+3. **Write & Save**: Configure your wiki title, choose your preferred saving mechanism (e.g. TiddlyDesktop, Timimi, WebDAV, or local download), and start writing notes right away.
+4. **1-Click Updates**: The starter notebook includes the plugin library endpoint pre-installed, so you can receive 1-click updates anytime in **Control Panel -> Plugins -> Get more plugins**.
+
+## Quick Start (Repository Setup & Development)
 
 1. **Initialize and push to GitHub**:
    ```bash

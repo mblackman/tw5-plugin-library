@@ -5,6 +5,7 @@
   "description": "Self-contained TiddlyWiki5 plugin library for @mblackman plugins",
   "scripts": {
     "sync": "node scripts/sync-and-build.js",
+    "build": "node scripts/sync-and-build.js --force",
     "build:force": "node scripts/sync-and-build.js --force",
     "check": "node scripts/sync-and-build.js --check-only",
     "serve": "npx http-server dist -p 8081 -c-1 --cors"
