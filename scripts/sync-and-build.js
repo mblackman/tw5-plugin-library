@@ -224,12 +224,14 @@ window.addEventListener("message", function(event) {
 }
 
 /**
- * Generate the landing page catalog tiddlers in `tiddlers/` before invoking `tiddlywiki --build`.
+ * Generate the landing page catalog tiddlers, individual searchable plugin
+ * showcase tiddlers, and read-only UI polish tiddlers in `tiddlers/`.
  */
 async function writeWikiTiddlers(manifest, collectedPlugins) {
   await fs.mkdir(TIDDLERS_DIR, { recursive: true });
 
   const configTitle = `$:/config/${manifest.authorHandle}/PluginLibrary`;
+  const homeTitle = "Mblackman TiddlyWiki Plugin Library";
 
   // 1. Write the draggable $:/tags/PluginLibrary configuration tiddler
   const libraryConfigTiddler = {
@@ -245,31 +247,84 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     "utf8"
   );
 
-  // 2. Write each packed plugin tiddler into tiddlers/ so the landing wiki includes them
+  // 2. Write each packed plugin tiddler AND a searchable non-system showcase tiddler
+  const rows = [];
+
   for (const entry of collectedPlugins) {
-    const safeFile = entry.plugin.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
-    const cleanTiddler = { ...entry.plugin };
+    const { plugin, releaseTag, publishedAt, repo, htmlUrl } = entry;
+    const safeFile = plugin.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
+    const cleanTiddler = {
+      ...plugin,
+      "source-library": manifest.libraryBaseUrl,
+      "source-repo": `https://github.com/${repo}`,
+      "library-release-tag": releaseTag,
+    };
     delete cleanTiddler._sourceRepo;
+
     await fs.writeFile(
       path.join(TIDDLERS_DIR, safeFile),
       JSON.stringify([cleanTiddler], null, 2),
       "utf8"
     );
+
+    const shortName = plugin.name || plugin.title.split("/").pop();
+    const docTiddlerTitle = `Plugin: ${shortName}`;
+    const desc = (plugin.description || "")
+      .replace(/\|/g, "&#124;")
+      .replace(/\r?\n/g, " ");
+    const ver = plugin.version || releaseTag;
+    const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
+
+    // Find embedded readme sub-tiddler title inside the plugin
+    let readmeSubTitle = `${plugin.title}/readme`;
+    try {
+      const parsedPayload = JSON.parse(plugin.text || "{}");
+      for (const k of Object.keys(parsedPayload.tiddlers || {})) {
+        if (k.toLowerCase().endsWith("/readme")) {
+          readmeSubTitle = k;
+          break;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    // Create a non-system documentation tiddler so the plugin appears in standard search and TableOfContents
+    const docTiddler = {
+      title: docTiddlerTitle,
+      tags: `[[${homeTitle}]] Plugins`,
+      caption: shortName,
+      "plugin-tiddler": plugin.title,
+      version: ver,
+      repository: `https://github.com/${repo}`,
+      type: "text/vnd.tiddlywiki",
+      text: `|!Plugin Title |\`${plugin.title}\` |
+|!Install Badge |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag ${shortName} v${ver} to your wiki</span></$draggable> |
+|!Version |\`${ver}\` ([[Release ${releaseTag}|${htmlUrl || `https://github.com/${repo}/releases`}]]) |
+|!Updated |${dateStr} |
+|!Repository |[[${repo}|https://github.com/${repo}]] |
+
+---
+
+<$transclude tiddler="${readmeSubTitle}" mode="block">
+//No embedded readme tiddler found in \`${plugin.title}\`.//
+</$transclude>
+`,
+    };
+
+    await fs.writeFile(
+      path.join(TIDDLERS_DIR, `Doc_${safeFile}`),
+      JSON.stringify([docTiddler], null, 2),
+      "utf8"
+    );
+
+    rows.push(
+      `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab;">📦 \`${plugin.title}\`</span></$draggable> |\`${ver}\` |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`
+    );
   }
 
-  // 3. Write SiteTitle, SiteSubtitle, DefaultTiddlers, and the PluginLibraryCatalog overview tiddler
-  const rows = collectedPlugins
-    .map(({ plugin, releaseTag, publishedAt, repo }) => {
-      const desc = (plugin.description || "")
-        .replace(/\|/g, "&#124;")
-        .replace(/\r?\n/g, " ");
-      const ver = plugin.version || releaseTag;
-      const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
-      return `|<$draggable tiddler="${plugin.title}"><span class="tc-tag-label">${plugin.title}</span></$draggable> ([[open|${plugin.title}]]) |\`${ver}\` |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
-    })
-    .join("\n");
-
-  const catalogWikitext = `title: Mblackman TiddlyWiki Plugin Library
+  // 3. Write the main landing page tiddler
+  const catalogWikitext = `title: ${homeTitle}
 tags: TableOfContents
 type: text/vnd.tiddlywiki
 
@@ -277,33 +332,75 @@ Welcome to ''${manifest.libraryName}''. This library automatically aggregates th
 
 !! 1. Add the Plugin Library (Recommended for 1-Click Updates)
 
-Drag and drop the following library configuration badge into your own TiddlyWiki, import it, and then open ''Control Panel -> Plugins -> Get more plugins'':
+Drag and drop the following library configuration badge into your own TiddlyWiki, click ''Import'', and then open ''Control Panel -> Plugins -> Get more plugins'':
 
 * <$draggable tiddler="${configTitle}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.25em 0.7em; border-radius:1em;">📦 ${manifest.libraryName} (Drag to your TiddlyWiki)</span></$draggable> — or drag the tiddler link directly: [[${configTitle}]]
 * ''Library Endpoint URL'': \`${libraryConfigTiddler.url}\`
 
-!! 2. Available Plugins in This Library
+!! 2. Available Plugins (${collectedPlugins.length})
 
-You can install or update any of these plugins inside your wiki via the Plugin Library above, or drag an individual plugin pill directly from the table below:
+Click any plugin name below to read its documentation, or drag its pill directly into your wiki:
 
-|!Plugin Tiddler (Drag to Install) |!Version |!Description |!Updated |!Source Repository |
-${rows || "|//No plugins published yet// | | | | |"}
+|!Plugin & Docs |!Drag to Install |!Version |!Description |!Updated |!Source Repository |
+${rows.join("\n") || "|//No plugins published yet// | | | | | |"}
 `;
 
   await fs.writeFile(path.join(TIDDLERS_DIR, "PluginLibraryCatalog.tid"), catalogWikitext, "utf8");
+
+  // 4. Write UI polish & read-only showcase configuration tiddlers
+  const uiConfigTiddlers = [
+    {
+      title: "$:/SiteTitle",
+      text: manifest.libraryName,
+    },
+    {
+      title: "$:/SiteSubtitle",
+      text: manifest.libraryDescription,
+    },
+    {
+      title: "$:/DefaultTiddlers",
+      text: `[[${homeTitle}]]`,
+    },
+    // Prevent "Leave site? Unsaved changes" browser prompt when visitors click around the demo site
+    {
+      title: "$:/config/SaverFilter",
+      text: "",
+    },
+    // Show Home and Close All buttons in page controls; hide Save Wiki and New Tiddler buttons
+    {
+      title: "$:/config/PageControlButtons/Visibility/$:/core/ui/Buttons/home",
+      text: "show",
+    },
+    {
+      title: "$:/config/PageControlButtons/Visibility/$:/core/ui/Buttons/close-all",
+      text: "show",
+    },
+    {
+      title: "$:/config/PageControlButtons/Visibility/$:/core/ui/Buttons/new-tiddler",
+      text: "hide",
+    },
+    {
+      title: "$:/config/PageControlButtons/Visibility/$:/core/ui/Buttons/save-wiki",
+      text: "hide",
+    },
+    // Add a "Plugins" Table of Contents tab in the right sidebar made default
+    {
+      title: "$:/config/PluginLibrary/ContentsTab",
+      tags: "$:/tags/SideBar",
+      caption: "Plugins",
+      "list-before": "$:/core/ui/SideBar/Open",
+      type: "text/vnd.tiddlywiki",
+      text: `<div class="tc-table-of-contents"><<toc-selective-expandable "${homeTitle}" "sort[title]">></div>`,
+    },
+    {
+      title: "$:/config/DefaultSidebarTab",
+      text: "$:/config/PluginLibrary/ContentsTab",
+    },
+  ];
+
   await fs.writeFile(
-    path.join(TIDDLERS_DIR, "SiteTitle.tid"),
-    `title: $:/SiteTitle\n\n${manifest.libraryName}\n`,
-    "utf8"
-  );
-  await fs.writeFile(
-    path.join(TIDDLERS_DIR, "SiteSubtitle.tid"),
-    `title: $:/SiteSubtitle\n\n${manifest.libraryDescription}\n`,
-    "utf8"
-  );
-  await fs.writeFile(
-    path.join(TIDDLERS_DIR, "DefaultTiddlers.tid"),
-    `title: $:/DefaultTiddlers\n\n[[Mblackman TiddlyWiki Plugin Library]]\n`,
+    path.join(TIDDLERS_DIR, "UIConfigTiddlers.json"),
+    JSON.stringify(uiConfigTiddlers, null, 2),
     "utf8"
   );
 }
@@ -410,6 +507,7 @@ async function main() {
               repo,
               releaseTag: meta.releaseTag,
               publishedAt: meta.publishedAt,
+              htmlUrl: meta.htmlUrl,
             });
           }
         }
@@ -430,8 +528,13 @@ async function main() {
   const libraryManifestArray = [];
   const fullPluginMap = {};
 
-  for (const { plugin } of collectedPlugins) {
-    const cleanPlugin = { ...plugin };
+  for (const { plugin, releaseTag, repo } of collectedPlugins) {
+    const cleanPlugin = {
+      ...plugin,
+      "source-library": manifest.libraryBaseUrl,
+      "source-repo": `https://github.com/${repo}`,
+      "library-release-tag": releaseTag,
+    };
     delete cleanPlugin._sourceRepo;
 
     fullPluginMap[cleanPlugin.title] = cleanPlugin;
