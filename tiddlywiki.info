@@ -1,5 +1,5 @@
 {
-  "description": "Matt Blackman's TiddlyWiki5 Plugin Library",
+  "description": "Mblackman TiddlyWiki5 Plugin Library",
   "plugins": [
     "tiddlywiki/pluginlibrary"
   ],

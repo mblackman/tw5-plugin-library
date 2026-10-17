@@ -1,4 +1,4 @@
-# Matt Blackman's TiddlyWiki5 Plugin Library (`tw5-plugin-library`)
+# Mblackman TiddlyWiki5 Plugin Library (`tw5-plugin-library`)
 
 Centralized, self-updating [TiddlyWiki5](https://github.com/TiddlyWiki/TiddlyWiki5) plugin library for `@mblackman` plugins, hosted on GitHub Pages at:
 

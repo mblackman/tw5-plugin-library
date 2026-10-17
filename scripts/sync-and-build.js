@@ -269,7 +269,7 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     })
     .join("\n");
 
-  const catalogWikitext = `title: Matt Blackman's TiddlyWiki Plugin Library
+  const catalogWikitext = `title: Mblackman TiddlyWiki Plugin Library
 tags: TableOfContents
 type: text/vnd.tiddlywiki
 
@@ -303,7 +303,7 @@ ${rows || "|//No plugins published yet// | | | | |"}
   );
   await fs.writeFile(
     path.join(TIDDLERS_DIR, "DefaultTiddlers.tid"),
-    `title: $:/DefaultTiddlers\n\n[[Matt Blackman's TiddlyWiki Plugin Library]]\n`,
+    `title: $:/DefaultTiddlers\n\n[[Mblackman TiddlyWiki Plugin Library]]\n`,
     "utf8"
   );
 }
