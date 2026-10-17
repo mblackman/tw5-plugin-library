@@ -143,14 +143,22 @@ function extractPluginReadme(pluginTiddler, options = {}) {
     readme = pluginTiddler.description || "";
   }
 
-  if (
-    includeNotice &&
-    (pluginTiddler.title === "$:/plugins/mblackman/tiddlypwa" ||
-      pluginTiddler["server-dependent"] === "yes")
-  ) {
-    const notice = `//''⚠️ Backend Server Required'': This plugin requires running a companion [[TiddlyPWA sync backend server|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] (Docker / Deno 2 + SQLite) with zero-knowledge encrypted storage. See [[mblackman/tiddlypwa documentation|https://github.com/mblackman/tiddlypwa]].//\n\n`;
-    if (!readme.includes("companion [[TiddlyPWA sync backend server")) {
-      readme = notice + readme;
+  if (includeNotice) {
+    if (pluginTiddler.title === "$:/plugins/mblackman/tiddlypwa") {
+      const notice = `//''⚠️ Requirements'': This plugin requires running a companion [[TiddlyPWA sync backend server|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] (Docker / Deno 2 + SQLite) and installing the companion [[$:/plugins/mblackman/web-app-manifest]] prerequisite plugin.//\n\n`;
+      if (!readme.includes("TiddlyPWA sync backend server")) {
+        readme = notice + readme;
+      }
+    } else if (pluginTiddler.title === "$:/plugins/mblackman/web-app-manifest") {
+      const notice = `//''ℹ️ TiddlyPWA Prerequisite'': This plugin is a required dependency for [[$:/plugins/mblackman/tiddlypwa]] to properly initialize Progressive Web App features and browser manifest registration.//\n\n`;
+      if (!readme.includes("TiddlyPWA Prerequisite")) {
+        readme = notice + readme;
+      }
+    } else if (pluginTiddler["server-dependent"] === "yes") {
+      const notice = `//''⚠️ Backend Server Required'': This plugin requires running a companion backend server.//\n\n`;
+      if (!readme.includes("Backend Server Required")) {
+        readme = notice + readme;
+      }
     }
   }
 
@@ -288,9 +296,20 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     }
   }
 
+  serverDependentPlugins.sort((a, b) => {
+    // web-app-manifest first as prerequisite, then tiddlypwa
+    if (a.plugin.title === "$:/plugins/mblackman/web-app-manifest") return -1;
+    if (b.plugin.title === "$:/plugins/mblackman/web-app-manifest") return 1;
+    return 0;
+  });
+
   // 3. Write each packed plugin tiddler AND a searchable non-system showcase tiddler
   for (const entry of collectedPlugins) {
     const { plugin, releaseTag, publishedAt, repo, htmlUrl, serverDependent } = entry;
+    const isTiddlyPwaSync = plugin.title === "$:/plugins/mblackman/tiddlypwa";
+    const isManifest = plugin.title === "$:/plugins/mblackman/web-app-manifest";
+    const isServerCore = isTiddlyPwaSync || (serverDependent && !isManifest);
+
     const safeFile = plugin.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
     const cleanTiddler = {
       ...plugin,
@@ -298,8 +317,11 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
       "source-repo": `https://github.com/${repo}`,
       "library-release-tag": releaseTag,
     };
-    if (serverDependent) {
+    if (isServerCore) {
       cleanTiddler["server-dependent"] = "yes";
+    }
+    if (isTiddlyPwaSync) {
+      cleanTiddler["dependents"] = "$:/plugins/mblackman/web-app-manifest";
     }
     delete cleanTiddler._sourceRepo;
 
@@ -317,28 +339,17 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     const ver = plugin.version || releaseTag;
     const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
 
-    // Find embedded readme sub-tiddler title inside the plugin
-    let readmeSubTitle = `${plugin.title}/readme`;
-    try {
-      const parsedPayload = JSON.parse(plugin.text || "{}");
-      for (const k of Object.keys(parsedPayload.tiddlers || {})) {
-        if (k.toLowerCase().endsWith("/readme")) {
-          readmeSubTitle = k;
-          break;
-        }
-      }
-    } catch {
-      // Ignore
-    }
-
     let serverNoticeWikitext = "";
     let serverTableRows = "";
-    if (serverDependent) {
+    let suiteRoleRow = "";
+
+    if (isTiddlyPwaSync) {
       serverNoticeWikitext = `
 <div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 5px solid #d46b08; padding: 14px 18px; margin: 1.2em 0; border-radius: 4px; color: #873800;">
-<h3 style="margin-top:0; color:#d46b08;">⚠️ Companion Backend Server Required</h3>
-<p style="margin-bottom:0.6em;">Unlike standard client-only TiddlyWiki plugins that execute solely within the browser, ''${shortName}'' is part of an <strong>offline-first synchronized architecture</strong> requiring a running companion backend server.</p>
+<h3 style="margin-top:0; color:#d46b08;">⚠️ Companion Backend Server & Manifest Plugin Required</h3>
+<p style="margin-bottom:0.6em;">''${shortName}'' is part of an <strong>offline-first synchronized architecture</strong> requiring a running companion backend server and the web app manifest prerequisite plugin.</p>
 <ul style="margin-bottom:0.6em; padding-left:1.5em;">
+<li><strong>Required Prerequisite</strong>: Install the companion <$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.15em 0.5em; border-radius:1em;">📦 [[web-app-manifest|Plugin: Web App Manifest]]</span></$draggable> plugin. TiddlyPWA requires this plugin to generate the web app manifest and register PWA installation with the browser.</li>
 <li><strong>Zero-Knowledge Encryption</strong>: All tiddlers are encrypted locally on your device (AES-GCM / Argon2id) before transmission; the sync server only stores ciphertext and never sees your plaintext content or encryption keys.</li>
 <li><strong>Multi-Device Real-Time Sync</strong>: Streams updates across all open devices in real time via Server-Sent Events (SSE) and WebSocket/JSON-RPC.</li>
 <li><strong>Conflict Resolution</strong>: Optimistic Concurrency Control (OCC) detects concurrent edits across multiple devices and provides non-destructive resolution workflows.</li>
@@ -347,8 +358,30 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
 </div>
 `;
       serverTableRows = `
-|!Requirement |<span style="color:#d46b08; font-weight:bold;">⚠️ Companion Backend Server Required</span> (Deno 2 + SQLite) |
+|!Prerequisite Plugin |<$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag web-app-manifest</span></$draggable> &bull; [[Plugin: Web App Manifest]] (''Required'' for proper operation) |
+|!Server Requirement |<span style="color:#d46b08; font-weight:bold;">⚠️ Companion Backend Server Required</span> (Deno 2 + SQLite) |
 |!Backend Deployment |[[Docker Quick Start|https://github.com/${repo}#quick-start-with-docker]] &bull; [[Architecture Specs|https://github.com/${repo}/tree/trunk/docs]] |`;
+      suiteRoleRow = `\n|!Suite Role |<span style="color:#d46b08; font-weight:bold;">⚡ Core Sync Adaptor</span> (Requires backend + manifest) |`;
+    } else if (isManifest) {
+      serverNoticeWikitext = `
+<div style="background-color: #e6f7ff; border: 1px solid #91d5ff; border-left: 5px solid #1890ff; padding: 14px 18px; margin: 1.2em 0; border-radius: 4px; color: #003a8c;">
+<h3 style="margin-top:0; color:#096dd9;">ℹ️ Required Prerequisite for TiddlyPWA</h3>
+<p style="margin-bottom:0.6em;">This plugin dynamically generates and registers the browser Web App Manifest (<code>manifest.json</code>) and is a <strong>required dependency for [[TiddlyPWA|Plugin: TiddlyPWA]]</strong> to function properly as an installable Progressive Web App.</p>
+<p style="margin-bottom:0;">When installing TiddlyPWA, make sure to drag both this manifest plugin and the core syncadaptor: <$draggable tiddler="$:/plugins/mblackman/tiddlypwa"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff; padding:0.15em 0.5em; border-radius:1em;">⚡ Drag TiddlyPWA</span></$draggable>.</p>
+</div>
+`;
+      serverTableRows = `
+|!Companion Core Plugin |<$draggable tiddler="$:/plugins/mblackman/tiddlypwa"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">⚡ Drag TiddlyPWA</span></$draggable> &bull; [[Plugin: TiddlyPWA]] |`;
+      suiteRoleRow = `\n|!Suite Role |<span style="color:#096dd9; font-weight:bold;">📦 Required Prerequisite</span> for [[Plugin: TiddlyPWA]] |`;
+    } else if (serverDependent) {
+      serverNoticeWikitext = `
+<div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 5px solid #d46b08; padding: 14px 18px; margin: 1.2em 0; border-radius: 4px; color: #873800;">
+<h3 style="margin-top:0; color:#d46b08;">⚠️ Companion Backend Server Required</h3>
+<p style="margin-bottom:0.6em;">Unlike standard client-only TiddlyWiki plugins that execute solely within the browser, ''${shortName}'' requires a running companion backend server.</p>
+</div>
+`;
+      serverTableRows = `
+|!Requirement |<span style="color:#d46b08; font-weight:bold;">⚠️ Companion Backend Server Required</span> |`;
     }
 
     const rawReadme = extractPluginReadme(cleanTiddler, { includeNotice: false });
@@ -356,17 +389,17 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     // Create a non-system documentation tiddler so the plugin appears in standard search and TableOfContents
     const docTiddler = {
       title: docTiddlerTitle,
-      tags: `[[${homeTitle}]] Plugins${serverDependent ? " [[Server-Dependent Plugins]]" : ""}`,
+      tags: `[[${homeTitle}]] Plugins${serverDependent ? " [[Server-Dependent Plugins]]" : ""}${isTiddlyPwaSync || isManifest ? " [[TiddlyPWA Suite]]" : ""}`,
       caption: shortName,
       "plugin-tiddler": plugin.title,
       version: ver,
       repository: `https://github.com/${repo}`,
-      "server-dependent": serverDependent ? "yes" : "no",
+      "server-dependent": isServerCore ? "yes" : "no",
       type: "text/vnd.tiddlywiki",
       text: `${serverNoticeWikitext}|!Plugin Title |\`${plugin.title}\` |
-|!Install Badge |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${serverDependent ? "#d46b08" : "#2b6cb0"}; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag ${shortName} v${ver} to your wiki</span></$draggable> |
-|!Version |\`${ver}\` ([[Release ${releaseTag}|${htmlUrl || `https://github.com/${repo}/releases`}]]) |
-|!Architecture |${serverDependent ? "⚠️ ''Server-Dependent'' (Requires TiddlyPWA Sync Server)" : "Standard Client Plugin (No Server Required)"} |
+|!Install Badge |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${isServerCore ? "#d46b08" : "#2b6cb0"}; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag ${shortName} v${ver} to your wiki</span></$draggable> |
+|!Version |\`${ver}\` ([[Release ${releaseTag}|${htmlUrl || `https://github.com/${repo}/releases`}]]) |${suiteRoleRow}
+|!Architecture |${isServerCore ? "⚠️ ''Server-Dependent'' (Requires TiddlyPWA Sync Server)" : isManifest ? "PWA Manifest Generator (Client-side prerequisite)" : "Standard Client Plugin (No Server Required)"} |
 |!Updated |${dateStr} |
 |!Repository |[[${repo}|https://github.com/${repo}]] |${serverTableRows}
 
@@ -404,7 +437,20 @@ ${rawReadme || `//No readme found in \`${plugin.title}\`.//`}
       .replace(/\r?\n/g, " ");
     const ver = plugin.version || releaseTag;
     const dateStr = publishedAt ? publishedAt.slice(0, 10) : "";
-    return `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff;">⚡ \`${plugin.title}\`</span></$draggable> |\`${ver}\` |<span style="color:#d46b08; font-weight:bold;">⚠️ Server Required</span> |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
+
+    let requirementCol = `<span style="color:#d46b08; font-weight:bold;">⚠️ Server Required</span>`;
+    let badgeColor = "#d46b08";
+    let icon = "⚡";
+
+    if (plugin.title === "$:/plugins/mblackman/web-app-manifest") {
+      requirementCol = `<span style="color:#096dd9; font-weight:bold;">📦 Required Prerequisite</span><br/><span style="font-size:0.85em; color:#4a5568;">Must be installed for TiddlyPWA</span>`;
+      badgeColor = "#2b6cb0";
+      icon = "📦";
+    } else if (plugin.title === "$:/plugins/mblackman/tiddlypwa") {
+      requirementCol = `<span style="color:#d46b08; font-weight:bold;">⚡ Core Sync Adaptor</span><br/><span style="font-size:0.85em; color:#d46b08;">⚠️ Server + web-app-manifest required</span>`;
+    }
+
+    return `|[[${shortName}|${docTiddlerTitle}]] |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${badgeColor}; color:#ffffff;">${icon} \`${plugin.title}\`</span></$draggable> |\`${ver}\` |${requirementCol} |${desc} |${dateStr} |[[${repo}|https://github.com/${repo}]] |`;
   });
 
   // 4. Write the main landing page tiddler with separated sections
@@ -428,7 +474,7 @@ These plugins run entirely within your browser or standard TiddlyWiki instance w
 |!Plugin & Docs |!Drag to Install |!Version |!Description |!Updated |!Source Repository |
 ${standardRows.join("\n") || "|//No standard plugins published yet// | | | | | |"}
 
-!! Server-Dependent Plugins: TiddlyPWA Architecture (${serverDependentPlugins.length})
+!! TiddlyPWA Progressive Web App Suite (${serverDependentPlugins.length} Plugins)
 
 <div style="background-color: #fafafa; border: 1px solid #e2e8f0; border-left: 5px solid #d46b08; border-radius: 6px; padding: 18px 22px; margin: 1.5em 0;">
 
@@ -439,6 +485,14 @@ ${standardRows.join("\n") || "|//No standard plugins published yet// | | | | | |
 <p style="margin-top: 0; color: #4a5568; line-height: 1.5;">
 Unlike traditional plugins that run purely inside a single-file wiki, <strong>TiddlyPWA</strong> turns TiddlyWiki into a full <strong>Progressive Web App (PWA)</strong> with encrypted real-time synchronization across your devices.
 </p>
+
+<div style="background:#fffbe6; border:1px solid #ffe58f; padding:12px 16px; border-radius:5px; color:#ad6800; font-size:0.95em; line-height:1.55; margin:14px 0;">
+<strong>⚠️ Installation Requirement:</strong> The TiddlyPWA suite consists of two complementary plugins. <strong>Both must be installed together</strong> in your TiddlyWiki for TiddlyPWA to operate properly:
+<div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+<div><strong>1. Prerequisite:</strong> <$draggable tiddler="$:/plugins/mblackman/web-app-manifest"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">📦 Drag web-app-manifest</span></$draggable> — Generates the browser Web App Manifest (required for PWA initialization).</div>
+<div><strong>2. Core Sync Adaptor:</strong> <$draggable tiddler="$:/plugins/mblackman/tiddlypwa"><span class="tc-tag-label" style="cursor:grab; background-color:#d46b08; color:#ffffff; padding:0.2em 0.6em; border-radius:1em;">⚡ Drag tiddlypwa</span></$draggable> — Provides offline-first zero-knowledge encrypted multi-device sync with the backend.</div>
+</div>
+</div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 16px 0;">
 
@@ -472,7 +526,7 @@ The sync backend runs with a minimal CPU/RAM footprint. Deploy via Docker:<br/>
 
 </div>
 
-|!Plugin & Docs |!Drag to Install |!Version |!Requirement |!Description |!Updated |!Source Repository |
+|!Plugin & Docs |!Drag to Install |!Version |!Requirement / Role |!Description |!Updated |!Source Repository |
 ${serverRows.join("\n") || "|//No server-dependent plugins published yet// | | | | | | |"}
 `;
 
@@ -644,11 +698,11 @@ async function main() {
         const rawText = await downloadAssetText(asset);
         const parsed = JSON.parse(rawText);
         const plugins = extractPluginTiddlers(parsed, repo);
-
         for (const plugin of plugins) {
           const isPluginServerDependent = Boolean(
             meta.serverDependent ||
             plugin.title === "$:/plugins/mblackman/tiddlypwa" ||
+            plugin.title === "$:/plugins/mblackman/web-app-manifest" ||
             plugin["server-dependent"] === "yes"
           );
 
@@ -664,7 +718,7 @@ async function main() {
               publishedAt: meta.publishedAt,
               htmlUrl: meta.htmlUrl,
               serverDependent: isPluginServerDependent,
-              serverDescription: meta.serverDescription,
+              serverDescription: isPluginServerDependent ? meta.serverDescription : "",
             });
           }
         }

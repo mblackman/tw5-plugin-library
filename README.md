@@ -19,9 +19,12 @@ These plugins run client-side in any standard TiddlyWiki single-file or node env
 - [`mblackman/tiddlywiki-journal`](https://github.com/mblackman/tiddlywiki-journal) — Journal structure and styling enhancements
 - [`mblackman/tiddlywiki-dayjs-plugin`](https://github.com/mblackman/tiddlywiki-dayjs-plugin) — Day.js date parsing and formatting library
 
-### Server-Dependent Plugins (Offline-First Sync Architecture)
-- [`mblackman/tiddlypwa`](https://github.com/mblackman/tiddlypwa) — **TiddlyPWA: Offline-First Storage & Zero-Knowledge Sync Solution**
-  - *Architecture Requirement*: Requires self-hosting the lightweight companion TiddlyPWA backend server (Deno 2 + SQLite / Docker).
+### TiddlyPWA Progressive Web App Suite (Offline-First Sync Architecture)
+- [`mblackman/tiddlypwa`](https://github.com/mblackman/tiddlypwa) — **Offline-First Storage & Zero-Knowledge Sync Solution**
+  - **Required Complementary Plugins** (both must be installed together for TiddlyPWA to operate properly):
+    1. **`$:/plugins/mblackman/web-app-manifest`** (*Required Prerequisite*): Dynamically generates and registers the browser Web App Manifest (`manifest.json`), necessary for PWA installation ("Add to Home Screen"), theme/background color integration, and icon handling.
+    2. **`$:/plugins/mblackman/tiddlypwa`** (*Core Sync Adaptor*): Offline-first IndexedDB encrypted cache and syncadaptor connecting to the companion sync backend.
+  - *Backend Server Requirement*: Requires running the companion TiddlyPWA backend server (Deno 2 + SQLite / Docker).
   - *Zero-Knowledge Privacy*: All tiddlers are encrypted locally on the device (AES-GCM / Argon2id) before syncing over the network; the sync server only stores ciphertext blobs and never sees plaintext content or keys.
   - *Features*: Offline PWA caching with Service Worker, real-time sync via Server-Sent Events (SSE), multi-device optimistic concurrency conflict resolution, and multi-tenant notebook scoping.
   - *Deployment*: Docker image available at `ghcr.io/mblackman/tiddlypwa:latest`. See [Docker Quick Start Guide](https://github.com/mblackman/tiddlypwa#quick-start-with-docker) and [Architecture Specifications](https://github.com/mblackman/tiddlypwa/tree/trunk/docs).

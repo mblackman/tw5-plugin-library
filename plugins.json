@@ -13,7 +13,7 @@
     { "repo": "mblackman/tiddlywiki-dayjs-plugin" },
     {
       "repo": "mblackman/tiddlypwa",
-      "assetRegex": "^tiddlypwa\\.json$",
+      "assetRegex": "^(tiddlypwa|web-app-manifest)\\.json$",
       "serverDependent": true,
       "category": "server-dependent",
       "serverDescription": "Offline-first encrypted PWA sync (requires TiddlyPWA sync server backend)"

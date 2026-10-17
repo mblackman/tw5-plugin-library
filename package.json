@@ -6,7 +6,8 @@
   "scripts": {
     "sync": "node scripts/sync-and-build.js",
     "build:force": "node scripts/sync-and-build.js --force",
-    "check": "node scripts/sync-and-build.js --check-only"
+    "check": "node scripts/sync-and-build.js --check-only",
+    "serve": "npx http-server dist -p 8081 -c-1 --cors"
   },
   "dependencies": {
     "tiddlywiki": "^5.3.6"
