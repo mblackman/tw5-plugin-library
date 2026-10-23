@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-10-23T05:37:44.215Z",
+  "updatedAt": "2026-10-23T19:26:03.348Z",
   "repositories": {
     "mblackman/tiddlywiki-slipstream": {
-      "releaseTag": "v0.5.2",
-      "publishedAt": "2026-10-23T02:05:27Z",
-      "fingerprint": "v0.5.2:667690534-2026-10-23T02:05:27Z"
+      "releaseTag": "v0.5.3",
+      "publishedAt": "2026-10-23T18:26:03Z",
+      "fingerprint": "v0.5.3:670000773-2026-10-23T18:26:02Z"
     },
     "mblackman/tiddlywiki-timelord": {
       "releaseTag": "v0.0.12",
