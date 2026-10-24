@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-24T00:54:33.894Z",
+  "updatedAt": "2026-10-24T05:12:55.169Z",
   "repositories": {
     "mblackman/tiddlywiki-slipstream": {
       "releaseTag": "v0.6.0",
@@ -17,14 +17,14 @@
       "fingerprint": "v0.2.9:670840128-2026-10-24T00:40:16Z"
     },
     "mblackman/tiddlywiki-coffee-tracker": {
-      "releaseTag": "v0.0.9",
-      "publishedAt": "2026-10-24T00:24:41Z",
-      "fingerprint": "v0.0.9:670810529-2026-10-24T00:24:40Z"
+      "releaseTag": "v0.0.10",
+      "publishedAt": "2026-10-24T04:33:05Z",
+      "fingerprint": "v0.0.10:671263285-2026-10-24T04:33:05Z"
     },
     "mblackman/tiddlywiki-journal": {
-      "releaseTag": "v0.2.0",
-      "publishedAt": "2026-10-24T00:28:57Z",
-      "fingerprint": "v0.2.0:670819032-2026-10-24T00:28:57Z"
+      "releaseTag": "v0.3.0",
+      "publishedAt": "2026-10-24T04:11:25Z",
+      "fingerprint": "v0.3.0:671226104-2026-10-24T04:11:24Z"
     },
     "mblackman/tiddlywiki-dayjs-plugin": {
       "releaseTag": "v1.11.19",
