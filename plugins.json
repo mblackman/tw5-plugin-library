@@ -9,13 +9,19 @@
     { "repo": "mblackman/tiddlywiki-media-importer" },
     { "repo": "mblackman/tiddlywiki-coffee-tracker" },
     { "repo": "mblackman/tiddlywiki-journal" },
-    { "repo": "mblackman/tiddlywiki-dayjs-plugin" },
     {
       "repo": "mblackman/tiddlypwa",
       "assetRegex": "^(tiddlypwa|web-app-manifest)\\.json$",
       "serverDependent": true,
       "category": "server-dependent",
       "serverDescription": "Offline-first encrypted PWA sync (requires TiddlyPWA sync server backend)"
+    },
+    {
+      "repo": "mblackman/tiddly-familiar",
+      "assetRegex": "^familiar\\.(json|tid)$",
+      "serverDependent": true,
+      "category": "server-dependent",
+      "serverDescription": "Streaming AI chat, semantic search, summaries, and tag/task suggestions (requires self-hosted Familiar gateway)"
     }
   ]
 }

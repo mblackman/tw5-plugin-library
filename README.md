@@ -17,8 +17,7 @@ These plugins run client-side in any standard TiddlyWiki single-file or node env
 - [`mblackman/tiddlywiki-timelord`](https://github.com/mblackman/tiddlywiki-timelord) — Timeline navigation, visual diff viewer, and revision history
 - [`mblackman/tiddlywiki-media-importer`](https://github.com/mblackman/tiddlywiki-media-importer) — Media consumption and asset tracking within TiddlyWiki
 - [`mblackman/tiddlywiki-coffee-tracker`](https://github.com/mblackman/tiddlywiki-coffee-tracker) — Daily coffee and espresso brewing tracker
-- [`mblackman/tiddlywiki-journal`](https://github.com/mblackman/tiddlywiki-journal) — Journal structure and styling enhancements
-- [`mblackman/tiddlywiki-dayjs-plugin`](https://github.com/mblackman/tiddlywiki-dayjs-plugin) — Day.js date parsing and formatting library
+- [`mblackman/tiddlywiki-journal`](https://github.com/mblackman/tiddlywiki-journal) — Structured daily, weekly, monthly, and yearly journaling and habit tracking (with built-in Day.js support)
 
 ### TiddlyPWA Progressive Web App Suite (Offline-First Sync Architecture)
 - [`mblackman/tiddlypwa`](https://github.com/mblackman/tiddlypwa) — **Offline-First Storage & Zero-Knowledge Sync Solution**
@@ -29,6 +28,13 @@ These plugins run client-side in any standard TiddlyWiki single-file or node env
   - *Zero-Knowledge Privacy*: All tiddlers are encrypted locally on the device (AES-GCM / Argon2id) before syncing over the network; the sync server only stores ciphertext blobs and never sees plaintext content or keys.
   - *Features*: Offline PWA caching with Service Worker, real-time sync via Server-Sent Events (SSE), multi-device optimistic concurrency conflict resolution, and multi-tenant notebook scoping.
   - *Deployment*: Docker image available at `ghcr.io/mblackman/tiddlypwa:latest`. See [Docker Quick Start Guide](https://github.com/mblackman/tiddlypwa#quick-start-with-docker) and [Architecture Specifications](https://github.com/mblackman/tiddlypwa/tree/trunk/docs).
+
+### Familiar (Self-Hosted AI Gateway)
+- [`mblackman/tiddly-familiar`](https://github.com/mblackman/tiddly-familiar) — **An AI Familiar for Your Wiki**
+  - **Plugin (`$:/plugins/mblackman/familiar`)**: Adds streaming AI chat, semantic search, note summaries, tag/task suggestions, and related-note discovery to any TiddlyWiki.
+  - *Backend Server Requirement*: Requires running the companion Familiar gateway server (FastAPI + Gemini or local Ollama via Docker Compose).
+  - *Client-Supplied Content*: The wiki sends its own note content with each request (minimized via a content-addressed SHA-256 cache), so it works against any TiddlyWiki without per-wiki server credentials or configuration.
+  - *Deployment*: See the [Gateway Setup Guide](https://github.com/mblackman/tiddly-familiar#gateway) for Docker Compose setup instructions.
 
 
 ## Start a New Notebook Immediately

@@ -189,6 +189,11 @@ function extractPluginReadme(pluginTiddler, options = {}) {
       if (!readme.includes("installable as a web app")) {
         readme = notice + readme;
       }
+    } else if (pluginTiddler.title === "$:/plugins/mblackman/familiar") {
+      const notice = `//''Heads up'': This plugin needs a running [[Familiar gateway server|https://github.com/mblackman/tiddly-familiar#gateway]].//\n\n`;
+      if (!readme.includes("Familiar gateway server")) {
+        readme = notice + readme;
+      }
     } else if (pluginTiddler["server-dependent"] === "yes") {
       const notice = `//''Heads up'': This plugin requires a companion backend server.//\n\n`;
       if (!readme.includes("companion backend server")) {
@@ -321,17 +326,20 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
 
   // 2. Partition plugins into standard and server-dependent collections
   const standardPlugins = [];
-  const serverDependentPlugins = [];
+  const tiddlyPwaPlugins = [];
+  const familiarPlugins = [];
 
   for (const entry of collectedPlugins) {
-    if (entry.serverDependent) {
-      serverDependentPlugins.push(entry);
+    if (entry.plugin.title === "$:/plugins/mblackman/familiar") {
+      familiarPlugins.push(entry);
+    } else if (entry.serverDependent) {
+      tiddlyPwaPlugins.push(entry);
     } else {
       standardPlugins.push(entry);
     }
   }
 
-  serverDependentPlugins.sort((a, b) => {
+  tiddlyPwaPlugins.sort((a, b) => {
     // web-app-manifest first as prerequisite, then tiddlypwa
     if (a.plugin.title === "$:/plugins/mblackman/web-app-manifest") return -1;
     if (b.plugin.title === "$:/plugins/mblackman/web-app-manifest") return 1;
@@ -343,7 +351,8 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     const { plugin, releaseTag, publishedAt, repo, htmlUrl, serverDependent } = entry;
     const isTiddlyPwaSync = plugin.title === "$:/plugins/mblackman/tiddlypwa";
     const isManifest = plugin.title === "$:/plugins/mblackman/web-app-manifest";
-    const isServerCore = isTiddlyPwaSync || (serverDependent && !isManifest);
+    const isFamiliar = plugin.title === "$:/plugins/mblackman/familiar";
+    const isServerCore = isTiddlyPwaSync || isFamiliar || (serverDependent && !isManifest);
 
     const safeFile = plugin.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
     const cleanTiddler = {
@@ -390,6 +399,14 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
 </div>
 `;
       extraTableRows = `\n|!Companion Plugin |[[Plugin: TiddlyPWA]] |`;
+    } else if (isFamiliar) {
+      serverNoticeWikitext = `
+<div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 4px solid #d46b08; padding: 12px 16px; margin: 1em 0; border-radius: 4px; color: #873800;">
+<strong>Heads up — requires the Familiar gateway server</strong>
+<p style="margin: 0.4em 0 0 0;">To use Familiar, you'll also need to run the companion gateway server (FastAPI + Gemini or local Ollama). Check out the [[Gateway setup guide|https://github.com/${repo}#gateway]] to get the server running with Docker.</p>
+</div>
+`;
+      extraTableRows = `\n|!Requires |[[Familiar Gateway Server|https://github.com/${repo}#gateway]] |`;
     } else if (serverDependent) {
       serverNoticeWikitext = `
 <div style="background-color: #fff8e6; border: 1px solid #ffd591; border-left: 4px solid #d46b08; padding: 12px 16px; margin: 1em 0; border-radius: 4px; color: #873800;">
@@ -399,11 +416,16 @@ async function writeWikiTiddlers(manifest, collectedPlugins) {
     }
 
     const rawReadme = extractPluginReadme(cleanTiddler, { includeNotice: false });
+    const suiteTag = isFamiliar
+      ? " [[Familiar]]"
+      : serverDependent
+        ? " [[TiddlyPWA]]"
+        : "";
 
     // Create a non-system documentation tiddler so the plugin appears in standard search and TableOfContents
     const docTiddler = {
       title: docTiddlerTitle,
-      tags: `[[${homeTitle}]] Plugins${serverDependent ? " [[TiddlyPWA]]" : ""}`,
+      tags: `[[${homeTitle}]] Plugins${suiteTag}`,
       caption: shortName,
       "plugin-tiddler": plugin.title,
       version: ver,
@@ -443,14 +465,14 @@ ${rawReadme || `//No readme found in \`${plugin.title}\`.//`}
     return `|[[${shortName}|${docTiddlerTitle}]] |${desc} |\`${ver}\` |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:#2b6cb0; color:#ffffff; padding:0.15em 0.55em; border-radius:1em;">📦 Drag to wiki</span></$draggable> |[[GitHub|https://github.com/${repo}]] |`;
   });
 
-  const serverRows = serverDependentPlugins.map((entry) => {
+  const formatServerRow = (entry) => {
     const { plugin, releaseTag, repo } = entry;
     const shortName = plugin.name || plugin.title.split("/").pop();
     const docTiddlerTitle = `Plugin: ${shortName}`;
     const desc = formatDesc(plugin.description);
     const ver = plugin.version || releaseTag;
 
-    let noteCol = "Needs sync server";
+    let noteCol = "Needs backend server";
     let badgeColor = "#d46b08";
     let icon = "⚡";
 
@@ -460,17 +482,66 @@ ${rawReadme || `//No readme found in \`${plugin.title}\`.//`}
       icon = "📦";
     } else if (plugin.title === "$:/plugins/mblackman/tiddlypwa") {
       noteCol = "Needs server + manifest plugin";
+    } else if (plugin.title === "$:/plugins/mblackman/familiar") {
+      noteCol = "Needs gateway server";
     }
 
     return `|[[${shortName}|${docTiddlerTitle}]] |${desc} |${noteCol} |\`${ver}\` |<$draggable tiddler="${plugin.title}"><span class="tc-tag-label" style="cursor:grab; background-color:${badgeColor}; color:#ffffff; padding:0.15em 0.55em; border-radius:1em;">${icon} Drag to wiki</span></$draggable> |[[GitHub|https://github.com/${repo}]] |`;
-  });
+  };
 
-  // 4. Write starter notebook documentation tiddler
-  const starterTiddlerTitle = "Starter Notebook (empty.html)";
+  const tiddlyPwaRows = tiddlyPwaPlugins.map(formatServerRow);
+  const familiarRows = familiarPlugins.map(formatServerRow);
+
+  // 4. Write dedicated server-backed suite tiddlers & starter notebook tiddler
+  const tiddlyPwaTiddlerTitle = "TiddlyPWA";
+  const tiddlyPwaSuiteTiddler = {
+    title: tiddlyPwaTiddlerTitle,
+    tags: `[[${homeTitle}]] TableOfContents`,
+    caption: tiddlyPwaTiddlerTitle,
+    type: "text/vnd.tiddlywiki",
+    text: `[[TiddlyPWA|Plugin: TiddlyPWA]] turns TiddlyWiki into an installable offline-first web app that syncs across your devices in real time. Your tiddlers are encrypted locally in your browser before they ever touch the server, so the server only sees encrypted blobs.
+
+Because it syncs across devices, it needs a little more setup than a regular plugin:
+* ''Both plugins below'' need to be installed in your wiki (the manifest generator + the sync adaptor).
+* ''A lightweight sync server'' (Deno + SQLite) needs to be running somewhere you control. It's easy to spin up with Docker — check the [[Quick Start guide|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] for details.
+
+|!Plugin |!What it does |!Notes |!Version |!Install |!Code |
+${tiddlyPwaRows.join("\n") || "|//No server plugins published yet// | | | | | |"}
+`,
+  };
+  await fs.writeFile(
+    path.join(TIDDLERS_DIR, "Doc_TiddlyPWA.json"),
+    JSON.stringify([tiddlyPwaSuiteTiddler], null, 2),
+    "utf8"
+  );
+
+  const familiarTiddlerTitle = "Familiar";
+  const familiarSuiteTiddler = {
+    title: familiarTiddlerTitle,
+    tags: `[[${homeTitle}]] TableOfContents`,
+    caption: familiarTiddlerTitle,
+    type: "text/vnd.tiddlywiki",
+    text: `[[familiar|Plugin: familiar]] adds streaming AI chat, semantic search, note summaries, tag & task suggestions, and related-note discovery to any TiddlyWiki. Your wiki sends its own note content with each request (minimized through a content-addressed cache), so it works with any TiddlyWiki without per-wiki server config while keeping your notes on your own infrastructure.
+
+Because retrieval and LLM calls run through a backend service, it needs a little more setup than a regular plugin:
+* ''A lightweight gateway server'' (FastAPI + Gemini or local Ollama) needs to be running somewhere you control. It's easy to spin up with Docker — check the [[Gateway setup guide|https://github.com/mblackman/tiddly-familiar#gateway]] for details.
+* Once it's running, point the plugin at your gateway URL in ''Control Panel → Settings → Familiar''.
+
+|!Plugin |!What it does |!Notes |!Version |!Install |!Code |
+${familiarRows.join("\n") || "|//No server plugins published yet// | | | | | |"}
+`,
+  };
+  await fs.writeFile(
+    path.join(TIDDLERS_DIR, "Doc_Familiar.json"),
+    JSON.stringify([familiarSuiteTiddler], null, 2),
+    "utf8"
+  );
+
+  const starterTiddlerTitle = "Starter Notebook";
   const starterTiddler = {
     title: starterTiddlerTitle,
     tags: `[[${homeTitle}]] TableOfContents`,
-    caption: "Starter Notebook (empty.html)",
+    caption: starterTiddlerTitle,
     type: "text/vnd.tiddlywiki",
     text: `If you're starting a brand new wiki and want all of my regular plugins ready to go out of the box, grab this starter file.
 
@@ -502,7 +573,7 @@ The [[plugin library|$:/config/${manifest.authorHandle}/PluginLibrary]] is also 
   // 5. Write the main landing page tiddler
   const catalogWikitext = `title: ${homeTitle}
 tags: TableOfContents
-list: [[${starterTiddlerTitle}]]
+list: [[${tiddlyPwaTiddlerTitle}]] [[${familiarTiddlerTitle}]] [[${starterTiddlerTitle}]]
 type: text/vnd.tiddlywiki
 
 Hi! This is where I keep the TiddlyWiki plugins I've built. Whenever I cut a new release on [[GitHub|https://github.com/${manifest.authorHandle}]], this page updates automatically.
@@ -524,17 +595,6 @@ These run right in your browser like normal TiddlyWiki plugins — no server or 
 
 |!Plugin |!What it does |!Version |!Install |!Code |
 ${standardRows.join("\n") || "|//No plugins published yet// | | | | |"}
-
-!! TiddlyPWA (Self-Hosted Sync)
-
-[[TiddlyPWA|Plugin: TiddlyPWA]] turns TiddlyWiki into an installable offline-first web app that syncs across your devices in real time. Your tiddlers are encrypted locally in your browser before they ever touch the server, so the server only sees encrypted blobs.
-
-Because it syncs across devices, it needs a little more setup than a regular plugin:
-* ''Both plugins below'' need to be installed in your wiki (the manifest generator + the sync adaptor).
-* ''A lightweight sync server'' (Deno + SQLite) needs to be running somewhere you control. It's easy to spin up with Docker — check the [[Quick Start guide|https://github.com/mblackman/tiddlypwa#quick-start-with-docker]] for details.
-
-|!Plugin |!What it does |!Notes |!Version |!Install |!Code |
-${serverRows.join("\n") || "|//No server plugins published yet// | | | | | |"}
 `;
 
   await fs.writeFile(path.join(TIDDLERS_DIR, "PluginLibraryCatalog.tid"), catalogWikitext, "utf8");
@@ -551,7 +611,7 @@ ${serverRows.join("\n") || "|//No server plugins published yet// | | | | | |"}
     },
     {
       title: "$:/DefaultTiddlers",
-      text: `[[${homeTitle}]] [[${starterTiddlerTitle}]]`,
+      text: `[[${homeTitle}]] [[${tiddlyPwaTiddlerTitle}]] [[${familiarTiddlerTitle}]] [[${starterTiddlerTitle}]]`,
     },
     // Prevent "Leave site? Unsaved changes" browser prompt when visitors click around the demo site
     {
@@ -712,6 +772,7 @@ async function main() {
             meta.serverDependent ||
             plugin.title === "$:/plugins/mblackman/tiddlypwa" ||
             plugin.title === "$:/plugins/mblackman/web-app-manifest" ||
+            plugin.title === "$:/plugins/mblackman/familiar" ||
             plugin["server-dependent"] === "yes"
           );
 
