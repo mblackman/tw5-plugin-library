@@ -18,6 +18,7 @@ These plugins run client-side in any standard TiddlyWiki single-file or node env
 - [`mblackman/tiddlywiki-media-importer`](https://github.com/mblackman/tiddlywiki-media-importer) — Media consumption and asset tracking within TiddlyWiki
 - [`mblackman/tiddlywiki-coffee-tracker`](https://github.com/mblackman/tiddlywiki-coffee-tracker) — Daily coffee and espresso brewing tracker
 - [`mblackman/tiddlywiki-journal`](https://github.com/mblackman/tiddlywiki-journal) — Structured daily, weekly, monthly, and yearly journaling and habit tracking (with built-in Day.js support)
+- [`mblackman/Projectify`](https://github.com/mblackman/Projectify) — GTD-inspired project and task management with Kanban boards, sub-tasks, and smart capture (for TiddlyWiki v5.4.0+)
 
 ### TiddlyPWA Progressive Web App Suite (Offline-First Sync Architecture)
 - [`mblackman/tiddlypwa`](https://github.com/mblackman/tiddlypwa) — **Offline-First Storage & Zero-Knowledge Sync Solution**

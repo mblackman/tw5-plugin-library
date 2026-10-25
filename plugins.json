@@ -9,6 +9,7 @@
     { "repo": "mblackman/tiddlywiki-media-importer" },
     { "repo": "mblackman/tiddlywiki-coffee-tracker" },
     { "repo": "mblackman/tiddlywiki-journal" },
+    { "repo": "mblackman/Projectify" },
     {
       "repo": "mblackman/tiddlypwa",
       "assetRegex": "^(tiddlypwa|web-app-manifest)\\.json$",
