@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-25T19:47:38.391Z",
+  "updatedAt": "2026-10-26T01:41:48.024Z",
   "repositories": {
     "mblackman/tiddlywiki-slipstream": {
       "releaseTag": "v0.6.0",
@@ -27,14 +27,14 @@
       "fingerprint": "v0.3.0:671226104-2026-10-24T04:11:24Z"
     },
     "mblackman/Projectify": {
-      "releaseTag": "v0.16.0",
-      "publishedAt": "2026-10-25T19:45:50Z",
-      "fingerprint": "v0.16.0:675956162-2026-10-25T19:45:50Z"
+      "releaseTag": "v0.17.0",
+      "publishedAt": "2026-10-26T00:08:20Z",
+      "fingerprint": "v0.17.0:676485237-2026-10-26T00:08:19Z"
     },
     "mblackman/tiddlypwa": {
-      "releaseTag": "v0.3.5",
-      "publishedAt": "2026-10-21T19:58:42Z",
-      "fingerprint": "v0.3.5:663633136-2026-10-21T19:58:41Z,663633135-2026-10-21T19:58:41Z"
+      "releaseTag": "v0.3.6",
+      "publishedAt": "2026-10-26T00:07:14Z",
+      "fingerprint": "v0.3.6:676482938-2026-10-26T00:07:13Z,676482936-2026-10-26T00:07:13Z"
     },
     "mblackman/tiddly-familiar": {
       "releaseTag": "v0.18.0",
