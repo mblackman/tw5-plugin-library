@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-29T16:04:25.639Z",
+  "updatedAt": "2026-11-03T04:01:18.130Z",
   "repositories": {
     "mblackman/tiddlywiki-slipstream": {
       "releaseTag": "v0.9.0",
@@ -26,10 +26,15 @@
       "publishedAt": "2026-10-27T15:02:43Z",
       "fingerprint": "v0.5.1:681933254-2026-10-27T15:02:42Z"
     },
+    "mblackman/tiddlywiki-cookbook": {
+      "releaseTag": "v0.1.0",
+      "publishedAt": "2026-11-03T04:00:48Z",
+      "fingerprint": "v0.1.0:704207102-2026-11-03T04:00:48Z"
+    },
     "mblackman/Projectify": {
-      "releaseTag": "v0.21.0",
-      "publishedAt": "2026-10-29T13:05:41Z",
-      "fingerprint": "v0.21.0:688593515-2026-10-29T13:05:40Z"
+      "releaseTag": "v0.21.1",
+      "publishedAt": "2026-11-03T03:53:54Z",
+      "fingerprint": "v0.21.1:704189403-2026-11-03T03:53:54Z"
     },
     "mblackman/tiddlypwa": {
       "releaseTag": "v0.3.9",
