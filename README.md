@@ -20,6 +20,7 @@ These plugins run client-side in any standard TiddlyWiki single-file or node env
 - [`mblackman/tiddlywiki-journal`](https://github.com/mblackman/tiddlywiki-journal) — Structured daily, weekly, monthly, and yearly journaling and habit tracking (with built-in Day.js support)
 - [`mblackman/tiddlywiki-cookbook`](https://github.com/mblackman/tiddlywiki-cookbook) — Structured recipe manager, live ingredient scaling, mise en place checklist, and post-cook journal (for TiddlyWiki v5.4.0+)
 - [`mblackman/Projectify`](https://github.com/mblackman/Projectify) — GTD-inspired project and task management with Kanban boards, sub-tasks, and smart capture (for TiddlyWiki v5.4.0+)
+- [`mblackman/tiddlywiki-mermaid`](https://github.com/mblackman/tiddlywiki-mermaid) — Offline Mermaid v11+ diagram rendering for WikiText and Markdown
 
 ### TiddlyPWA Progressive Web App Suite (Offline-First Sync Architecture)
 - [`mblackman/tiddlypwa`](https://github.com/mblackman/tiddlypwa) — **Offline-First Storage & Zero-Knowledge Sync Solution**

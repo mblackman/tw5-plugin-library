@@ -11,6 +11,7 @@
     { "repo": "mblackman/tiddlywiki-journal" },
     { "repo": "mblackman/tiddlywiki-cookbook" },
     { "repo": "mblackman/Projectify" },
+    { "repo": "mblackman/tiddlywiki-mermaid" },
     {
       "repo": "mblackman/tiddlypwa",
       "assetRegex": "^(tiddlypwa|web-app-manifest)\\.json$",
